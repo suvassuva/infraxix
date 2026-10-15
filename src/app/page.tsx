@@ -78,50 +78,82 @@ export default function HomePage() {
           {/* Heading */}
           <div className="max-w-2xl">
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
-              {isOfficer ? 'My Capture History' : 'Verified Workspaces'}
+              {isOfficer ? 'Field Officer Hub' : 'Verified Workspaces'}
             </h1>
             <p className="mt-2 text-xs sm:text-base text-slate-300 leading-relaxed">
               {isOfficer
-                ? 'Your personal submission log of on-site verified commercial workspaces, telemetry GPS locks, and inspection media.'
+                ? 'Your central workstation for on-site workspace submissions, telemetry GPS verification, and hardware captures.'
                 : 'Browse and capture on-site verified meeting rooms, executive offices, dedicated desks, and coworking labs with hardware GPS telemetry.'}
             </p>
           </div>
 
-          {/* Search Bar & Capture CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 max-w-2xl">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder={
-                  isOfficer
-                    ? 'Search your submitted workspaces, buildings, or tags...'
-                    : 'Search by workspace title, building, or inspector...'
-                }
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+          {/* Officer Action Buttons & Search - Both buttons in one place on Home */}
+          <div className="flex flex-col gap-3 max-w-3xl">
+            {isOfficer && (
+              <div className="flex flex-wrap items-center gap-2.5 pb-1">
+                <Link href="/capture">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    leftIcon={<Camera className="w-4 h-4" />}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                  >
+                    Capture Workspace
+                  </Button>
+                </Link>
+
+                <Button
+                  variant="secondary"
+                  size="md"
+                  leftIcon={<FileSpreadsheet className="w-4 h-4 text-blue-600" />}
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setSearchQuery('');
+                  }}
+                  className="bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 font-semibold"
                 >
-                  Clear
-                </button>
+                  My Submissions ({officerTotal})
+                </Button>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={
+                    isOfficer
+                      ? 'Search your submitted workspaces, buildings, or tags...'
+                      : 'Search by workspace title, building, or inspector...'
+                  }
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {!isOfficer && (
+                <Link href="/capture" className="shrink-0 w-full sm:w-auto">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    leftIcon={<Camera className="w-4 h-4" />}
+                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                  >
+                    Capture Workspace
+                  </Button>
+                </Link>
               )}
             </div>
-
-            <Link href="/capture" className="shrink-0 w-full sm:w-auto">
-              <Button
-                variant="primary"
-                size="md"
-                leftIcon={<Camera className="w-4 h-4" />}
-                className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
-              >
-                Capture Workspace
-              </Button>
-            </Link>
           </div>
 
           {/* Quick Metrics Strip */}

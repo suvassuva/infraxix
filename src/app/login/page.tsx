@@ -73,8 +73,9 @@ export default function LoginPage() {
       setStatusMessage(
         `Signed in as ${user.displayName} (${user.role.toUpperCase()}) via MockAuthRepository.`
       );
+      const targetPath = user.role === 'officer' ? '/' : '/dashboard';
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push(targetPath);
       }, 600);
     } catch (err: unknown) {
       const e = err as Error;
@@ -97,10 +98,11 @@ export default function LoginPage() {
         rememberMe,
       });
       setStatusMessage(
-        `Authorized as ${user.displayName}! Redirecting to Command Center...`
+        `Authorized as ${user.displayName}! Redirecting...`
       );
+      const targetPath = user.role === 'officer' ? '/' : '/dashboard';
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push(targetPath);
       }, 600);
     } catch (err: unknown) {
       const e = err as Error;
@@ -131,8 +133,9 @@ export default function LoginPage() {
       setStatusMessage(
         `Demo profile created for ${user.displayName}! Session initiated.`
       );
+      const targetPath = user.role === 'officer' ? '/' : '/dashboard';
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push(targetPath);
       }, 700);
     } catch (err: unknown) {
       const e = err as Error;

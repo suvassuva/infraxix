@@ -28,9 +28,7 @@ export function Navbar() {
   const isAdmin = user?.role === 'admin';
 
   const navigation = isOfficer
-    ? [
-        { name: 'My Submissions', href: '/', icon: FileSpreadsheet },
-      ]
+    ? []
     : isAdmin
     ? [
         { name: 'Workspaces', href: '/', icon: Building2 },
@@ -92,18 +90,21 @@ export function Navbar() {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/capture">
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Camera className="w-4 h-4" />}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-xs"
-              >
-                Capture Workspace
-              </Button>
-            </Link>
-
-            <div className="h-4 w-px bg-slate-200" />
+            {!isOfficer && (
+              <>
+                <Link href="/capture">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Camera className="w-4 h-4" />}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-xs"
+                  >
+                    Capture Workspace
+                  </Button>
+                </Link>
+                <div className="h-4 w-px bg-slate-200" />
+              </>
+            )}
 
             {isAuthenticated && user ? (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-lg py-1 px-2.5">
@@ -143,13 +144,15 @@ export function Navbar() {
 
           {/* Mobile Right Controls */}
           <div className="flex md:hidden items-center gap-2">
-            <Link
-              href="/capture"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-xs"
-            >
-              <Camera className="w-3.5 h-3.5" />
-              Capture
-            </Link>
+            {!isOfficer && (
+              <Link
+                href="/capture"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-xs"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                Capture
+              </Link>
+            )}
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

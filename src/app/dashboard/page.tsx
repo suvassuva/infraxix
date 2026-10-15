@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   FileText,
   Clock,
@@ -27,10 +28,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { CaptureRecord } from '@/types';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.role === 'officer') {
+      router.replace('/');
+    }
+  }, [user, router]);
 
   const { stats, isLoading: statsLoading, refetch: refetchStats } = useStats();
   const {
@@ -56,13 +64,13 @@ export default function DashboardPage() {
         <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto">
           <ShieldCheck className="w-6 h-6" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900">Field Officer Workstation Active</h2>
+        <h2 className="text-xl font-bold text-slate-900">Redirecting to Field Officer Hub...</h2>
         <p className="text-sm text-slate-500 max-w-md mx-auto">
-          System analytics and facility command metrics are reserved for Operations Administrators. Your account is dedicated to capturing and tracking on-site workspace submissions.
+          Your account is dedicated to capturing and tracking on-site workspace submissions.
         </p>
         <div className="pt-2">
           <Link href="/">
-            <Button variant="primary">Return to My Submissions</Button>
+            <Button variant="primary">Open Home Hub</Button>
           </Link>
         </div>
       </div>
