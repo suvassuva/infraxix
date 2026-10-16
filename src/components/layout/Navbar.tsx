@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   Building2,
   Camera,
-  BarChart3,
-  FileSpreadsheet,
   Settings,
   Menu,
   X,
@@ -32,14 +30,11 @@ export function Navbar() {
     : isAdmin
     ? [
         { name: 'Workspaces', href: '/', icon: Building2 },
-        { name: 'Records', href: '/records', icon: FileSpreadsheet },
-        { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-        { name: 'Admin', href: '/admin', icon: User },
+        { name: 'Admin Hub', href: '/admin', icon: User },
         { name: 'Settings', href: '/settings', icon: Settings },
       ]
     : [
         { name: 'Workspaces', href: '/', icon: Building2 },
-        { name: 'Records', href: '/records', icon: FileSpreadsheet },
       ];
 
   const isActive = (href: string) => {
@@ -90,22 +85,6 @@ export function Navbar() {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-3">
-            {!isOfficer && (
-              <>
-                <Link href="/capture">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    leftIcon={<Camera className="w-4 h-4" />}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-xs"
-                  >
-                    Capture Workspace
-                  </Button>
-                </Link>
-                <div className="h-4 w-px bg-slate-200" />
-              </>
-            )}
-
             {isAuthenticated && user ? (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-lg py-1 px-2.5">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
@@ -144,16 +123,6 @@ export function Navbar() {
 
           {/* Mobile Right Controls */}
           <div className="flex md:hidden items-center gap-2">
-            {!isOfficer && (
-              <Link
-                href="/capture"
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold shadow-xs"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                Capture
-              </Link>
-            )}
-
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"

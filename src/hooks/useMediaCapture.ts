@@ -51,6 +51,7 @@ export interface UseMediaCaptureReturn {
   confirmMedia: () => AttachmentItem | null;
   discardStagedMedia: () => void;
   removeConfirmedMedia: () => void;
+  stageFileMedia: (file: File) => void;
 }
 
 export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseMediaCaptureReturn {
@@ -464,6 +465,34 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
     setConfirmedMedia(null);
   }, [confirmedMedia, revokeRegisteredUrl]);
 
+  /**
+   * Stages an uploaded photo or video file directly from the user's device.
+   */
+  const stageFileMedia = useCallback(
+    (file: File) => {
+      const isVideo = file.type.startsWith('video');
+      const objectUrl = registerObjectUrl(URL.createObjectURL(file));
+      const item: CapturedMediaItem = {
+        id: `${isVideo ? 'video' : 'photo'}-${Date.now()}`,
+        type: isVideo ? 'video' : 'photo',
+        mimeType: file.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+        blob: file,
+        objectUrl,
+        fileName: file.name,
+        fileSizeBytes: file.size,
+        fileSizeFormatted: mediaCaptureService.formatFileSize(file.size),
+        durationSeconds: isVideo ? 1 : undefined,
+        durationFormatted: isVideo ? 'Video File' : undefined,
+        hasAudio: false,
+        capturedAt: new Date().toISOString(),
+        resolution: isVideo ? 'Uploaded Video' : 'Uploaded Photo',
+      };
+      setStagedMedia(item);
+      setStatus('reviewing');
+    },
+    [registerObjectUrl]
+  );
+
   // Clean up all tracks and object URLs on unmount
   useEffect(() => {
     const urlsToRevoke = objectUrlsRef.current;
@@ -510,5 +539,6 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
     confirmMedia,
     discardStagedMedia,
     removeConfirmedMedia,
+    stageFileMedia,
   };
 }

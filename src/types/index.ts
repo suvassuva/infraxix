@@ -194,6 +194,8 @@ export interface CaptureRecord {
   pricing?: PropertyPricing;
   verificationBadge?: string;
   doorstepCoordinates?: CaptureLocation;
+  supervisorNote?: string;
+  reviewerName?: string;
 }
 
 // Backward-compatibility alias

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Camera,
-  MapPin,
   Upload,
   CheckCircle,
   FileCheck,
@@ -33,13 +32,10 @@ import { Dialog } from '@/components/ui/Dialog';
 import { Badge } from '@/components/ui/Badge';
 import { MediaViewer } from '@/components/ui/MediaViewer';
 import { useCreateRecord } from '@/hooks/useRecords';
-import { useGPSCapture } from '@/hooks/useGPSCapture';
 import { useMediaCapture } from '@/hooks/useMediaCapture';
 import { useAuth } from '@/hooks/useAuth';
 import {
   MediaAsset,
-  CaptureLocation,
-  GPS_VERIFICATION_DISCLAIMER,
   ListingType,
   PropertyCategory,
 } from '@/types';
@@ -65,16 +61,12 @@ export default function CapturePage() {
   const [washrooms, setWashrooms] = useState('2');
   const [powerBackup, setPowerBackup] = useState('100% DG Backup');
   const [parkingSpaces, setParkingSpaces] = useState('2');
-  const [manualLat, setManualLat] = useState('37.7749');
-  const [manualLng, setManualLng] = useState('-122.4194');
 
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     'High-Speed Wi-Fi 6',
     '4K Video Conferencing',
     'Acoustic Soundproofing',
   ]);
-  const [workspaceRoomMode, setWorkspaceRoomMode] = useState<'wide' | 'workstation' | 'av_tech' | 'video_tour'>('wide');
-  const [cameraAspectRatio, setCameraAspectRatio] = useState<'16/9' | '4/3' | '1/1'>('16/9');
 
   const [itemsInspected, setItemsInspected] = useState('12');
   const [defectsFound, setDefectsFound] = useState('0');
@@ -82,6 +74,9 @@ export default function CapturePage() {
   const [createdRecordId, setCreatedRecordId] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // File input ref for photo/video upload from device
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Demo upload simulation states
   const [demoUploadEnabled, setDemoUploadEnabled] = useState(true);
@@ -127,41 +122,14 @@ export default function CapturePage() {
     confirmMedia,
     discardStagedMedia,
     removeConfirmedMedia,
+    stageFileMedia,
   } = useMediaCapture();
 
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
 
-  // Real user-initiated browser GPS capture hook
-  const {
-    status: gpsStatus,
-    stagedPosition: stagedGps,
-    confirmedPosition: confirmedGps,
-    error: gpsError,
-    permissionState: gpsPermissionState,
-    isReviewModalOpen: isGpsReviewOpen,
-    isSupported: isGpsSupported,
-    isSecure: isGpsSecure,
-    isAcquiring: isGpsAcquiring,
-    getCurrentLocation,
-    retry: retryGps,
-    clear: clearGps,
-    confirmLocation: confirmGps,
-    discardStaged: discardStagedGps,
-    openReview: openGpsReview,
-    closeReview: closeGpsReview,
-  } = useGPSCapture();
-
   // Submission success dialog
   const [submittedModalOpen, setSubmittedModalOpen] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
-
-  // Auto-sync manual coordinates whenever GPS is confirmed
-  useEffect(() => {
-    if (confirmedGps) {
-      setManualLat(confirmedGps.latitude.toFixed(6));
-      setManualLng(confirmedGps.longitude.toFixed(6));
-    }
-  }, [confirmedGps]);
 
   const cancelDemoUpload = useCallback(() => {
     demoUploadTimersRef.current.forEach(clearTimeout);
@@ -192,26 +160,6 @@ export default function CapturePage() {
         }
       : undefined;
 
-    // Resolve coordinates from either confirmed browser GPS or manual input
-    const effectiveLat = manualLat ? parseFloat(manualLat) : confirmedGps?.latitude;
-    const effectiveLng = manualLng ? parseFloat(manualLng) : confirmedGps?.longitude;
-    const hasValidCoords =
-      effectiveLat !== undefined &&
-      effectiveLng !== undefined &&
-      !isNaN(effectiveLat) &&
-      !isNaN(effectiveLng);
-
-    const loc: CaptureLocation | undefined = hasValidCoords
-      ? {
-          latitude: effectiveLat!,
-          longitude: effectiveLng!,
-          accuracyMeters: confirmedGps?.accuracyMeters || 2.5,
-          capturedAt: confirmedGps?.capturedAt || new Date().toISOString(),
-          address: facility.trim() || confirmedGps?.address || 'On-site Workspace Location',
-          elevationMeters: confirmedGps?.elevationMeters,
-        }
-      : undefined;
-
     try {
       const parsedRent = rent ? parseInt(rent, 10) : undefined;
       const parsedDeposit = deposit ? parseInt(deposit, 10) : undefined;
@@ -224,7 +172,7 @@ export default function CapturePage() {
         priority: priority as 'low' | 'medium' | 'high' | 'urgent',
         itemsInspected: parseInt(itemsInspected, 10) || 12,
         defectsFound: parseInt(defectsFound, 10) || 0,
-        location: loc,
+        location: undefined,
         mediaReferences: mediaRef ? [mediaRef] : [],
         consentVersion: 'v1.4-2026',
         propertyCategory: workspaceCategory,
@@ -252,10 +200,8 @@ export default function CapturePage() {
           currency: 'INR',
           pricePeriod: 'month',
         },
-        verificationBadge: loc
-          ? `PVG Verified GPS (±${loc.accuracyMeters.toFixed(1)}m)`
-          : 'Pending GPS Lock',
-        doorstepCoordinates: loc,
+        verificationBadge: 'Field Verified',
+        doorstepCoordinates: undefined,
       });
 
       setGeneratedRefId(created.referenceNumber);
@@ -271,7 +217,6 @@ export default function CapturePage() {
     }
   }, [
     confirmedMedia,
-    confirmedGps,
     createRecord,
     title,
     notes,
@@ -291,8 +236,6 @@ export default function CapturePage() {
     washrooms,
     powerBackup,
     parkingSpaces,
-    manualLat,
-    manualLng,
     selectedAmenities,
   ]);
 
@@ -320,10 +263,6 @@ export default function CapturePage() {
       setErrorMessage('You have captured media waiting for review. Please either click "Confirm & Attach to Record" or discard it before submitting.');
       return;
     }
-    if (stagedGps && !confirmedGps) {
-      setErrorMessage('You have acquired GPS coordinates waiting for review. Please either click "Confirm & Attach to Record" or discard them before submitting.');
-      return;
-    }
 
     // Check if Demo Upload Simulation is enabled
     if (demoUploadEnabled) {
@@ -341,7 +280,7 @@ export default function CapturePage() {
 
       const t2 = setTimeout(() => {
         setDemoUploadProgress(70);
-        setDemoUploadStage('Step 3/4: Attaching WGS84 coordinates & telemetry metadata (Demo upload)...');
+        setDemoUploadStage('Step 3/4: Packaging property parameters & evidence files (Demo upload)...');
       }, 850);
 
       const t3 = setTimeout(() => {
@@ -389,7 +328,7 @@ export default function CapturePage() {
           Capture Workspace
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-          Record property specifications, capture on-site photos and video, and lock GPS coordinates.
+          Record property specifications and capture on-site photos and video evidence.
         </p>
       </div>
 
@@ -622,7 +561,7 @@ export default function CapturePage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <CardTitle className="flex items-center gap-2">
                 <Camera className="w-5 h-5 text-blue-600 shrink-0" />
-                <span className="leading-snug">2. Live Camera & Video Evidence Capture</span>
+                <span className="leading-snug">2. Photo & Video Evidence Capture</span>
               </CardTitle>
               <div className="flex flex-wrap items-center gap-1.5">
                 {mediaStatus === 'idle' && !confirmedMedia && (
@@ -658,7 +597,7 @@ export default function CapturePage() {
               </div>
             </div>
             <CardDescription>
-              Capture high-resolution on-site photos and walkthrough video tours.
+              Capture high-resolution on-site photos and walkthrough video tours, or upload media files.
             </CardDescription>
           </CardHeader>
 
@@ -718,8 +657,8 @@ export default function CapturePage() {
             )}
 
             {/* Viewfinder Controls Toolbar */}
-            <div className="flex flex-col gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
-              <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-between gap-2.5 w-full">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <div className="flex items-center gap-2">
                 {mediaStatus === 'idle' || mediaStatus === 'error' ? (
                   <Button
                     type="button"
@@ -737,7 +676,7 @@ export default function CapturePage() {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    className="w-full sm:w-auto"
+                    className="w-full sm:w-auto text-white bg-slate-800 hover:bg-slate-700"
                     onClick={closeCamera}
                     leftIcon={<Square className="w-3.5 h-3.5" />}
                   >
@@ -745,86 +684,8 @@ export default function CapturePage() {
                   </Button>
                 )}
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Mode Selector (Photo vs Video) */}
-                  <div className="flex items-center bg-slate-200 p-0.5 rounded-lg text-xs font-medium">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        switchCameraMode('photo');
-                        if (workspaceRoomMode === 'video_tour') setWorkspaceRoomMode('wide');
-                      }}
-                      className={`px-2.5 py-1 rounded-md transition-all ${
-                        cameraMode === 'photo' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                      }`}
-                    >
-                      Photo Still
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        switchCameraMode('video');
-                        setWorkspaceRoomMode('video_tour');
-                      }}
-                      className={`px-2.5 py-1 rounded-md transition-all ${
-                        cameraMode === 'video' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                      }`}
-                    >
-                      Video Walkthrough
-                    </button>
-                  </div>
-
-                  {/* Aspect Ratio Selector */}
-                  <div className="flex items-center bg-slate-200 p-0.5 rounded-lg text-[11px] font-mono">
-                    {(['16/9', '4/3', '1/1'] as const).map((ratio) => (
-                      <button
-                        key={ratio}
-                        type="button"
-                        onClick={() => setCameraAspectRatio(ratio)}
-                        className={`px-2 py-0.5 rounded transition-all ${
-                          cameraAspectRatio === ratio ? 'bg-white text-slate-900 font-bold shadow-xs' : 'text-slate-600'
-                        }`}
-                      >
-                        {ratio}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Workspace Target Selector Pills */}
-              <div className="w-full flex items-center gap-1.5 pt-2.5 border-t border-slate-200 overflow-x-auto no-scrollbar scrollbar-none pb-1 touch-pan-x min-w-0">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1 shrink-0">
-                  Target:
-                </span>
-                {[
-                  { id: 'wide', label: '📐 Wide Workspace View', mode: 'photo' },
-                  { id: 'workstation', label: '🖥️ Workstations & Desks', mode: 'photo' },
-                  { id: 'av_tech', label: '🔌 AV & Power Infrastructure', mode: 'photo' },
-                  { id: 'video_tour', label: '🎥 Video Walkthrough', mode: 'video' },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setWorkspaceRoomMode(item.id as any);
-                      if (item.mode === 'video' && cameraMode !== 'video') switchCameraMode('video');
-                      if (item.mode === 'photo' && cameraMode !== 'photo') switchCameraMode('photo');
-                    }}
-                    className={`shrink-0 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                      workspaceRoomMode === item.id
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Viewfinder Lens and Audio Options */}
-              {(mediaStatus === 'previewing' || mediaStatus === 'recording') && (
-                <div className="flex flex-wrap items-center gap-2 text-xs">
+                {/* Optional Lens Flip when viewfinder active */}
+                {(mediaStatus === 'previewing' || mediaStatus === 'recording') && (
                   <Button
                     type="button"
                     variant="outline"
@@ -835,24 +696,49 @@ export default function CapturePage() {
                   >
                     {cameraFacing === 'environment' ? 'Rear Lens' : 'Front Lens'}
                   </Button>
+                )}
+              </div>
 
-                  {cameraMode === 'video' && (
-                    <button
-                      type="button"
-                      onClick={() => setIncludeAudio(!micEnabled)}
-                      className={`p-1.5 rounded-lg border flex items-center gap-1.5 transition-colors ${
-                        micEnabled
-                          ? 'bg-blue-100 text-blue-800 border-blue-300'
-                          : 'bg-white text-slate-600 border-slate-200'
-                      }`}
-                      title={audioDisclosure}
-                    >
-                      {micEnabled ? <Mic className="w-3.5 h-3.5 text-blue-600" /> : <MicOff className="w-3.5 h-3.5 text-slate-400" />}
-                      <span>{micEnabled ? 'Mic Active' : 'Mic Muted'}</span>
-                    </button>
-                  )}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                {/* Mode Selector (Photo vs Video) */}
+                <div className="flex items-center bg-slate-200 p-0.5 rounded-lg text-xs font-medium">
+                  <button
+                    type="button"
+                    onClick={() => switchCameraMode('photo')}
+                    className={`px-3 py-1.5 rounded-md transition-all font-semibold ${
+                      cameraMode === 'photo' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Photo Still
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchCameraMode('video')}
+                    className={`px-3 py-1.5 rounded-md transition-all font-semibold ${
+                      cameraMode === 'video' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Video Walkthrough
+                  </button>
                 </div>
-              )}
+
+                {/* Mic toggle when in video mode and active */}
+                {(mediaStatus === 'previewing' || mediaStatus === 'recording') && cameraMode === 'video' && (
+                  <button
+                    type="button"
+                    onClick={() => setIncludeAudio(!micEnabled)}
+                    className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                      micEnabled
+                        ? 'bg-blue-100 text-blue-800 border-blue-300'
+                        : 'bg-white text-slate-600 border-slate-200'
+                    }`}
+                    title={audioDisclosure}
+                  >
+                    {micEnabled ? <Mic className="w-3.5 h-3.5 text-blue-600" /> : <MicOff className="w-3.5 h-3.5 text-slate-400" />}
+                    <span>{micEnabled ? 'Mic Active' : 'Mic Muted'}</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Audio Disclosure Banner for Video Mode */}
@@ -870,15 +756,7 @@ export default function CapturePage() {
 
             {/* Active Live Video Viewfinder Element */}
             {(mediaStatus === 'previewing' || mediaStatus === 'recording') && (
-              <div
-                className={`relative w-full max-h-96 bg-slate-950 rounded-xl overflow-hidden flex flex-col justify-between p-4 text-white border border-slate-800 animate-in fade-in shadow-xl ${
-                  cameraAspectRatio === '16/9'
-                    ? 'aspect-video'
-                    : cameraAspectRatio === '4/3'
-                    ? 'aspect-[4/3]'
-                    : 'aspect-square'
-                }`}
-              >
+              <div className="relative w-full max-h-96 bg-slate-950 rounded-xl overflow-hidden flex flex-col justify-between p-4 text-white border border-slate-800 animate-in fade-in shadow-xl aspect-video">
                 {/* HTMLVideoElement with live camera stream */}
                 <video
                   ref={videoRef}
@@ -893,19 +771,9 @@ export default function CapturePage() {
                   <div className="flex items-center gap-2 bg-black/75 px-2.5 py-1 rounded-md backdrop-blur-xs text-emerald-400 border border-emerald-500/30">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                     <span>
-                      {workspaceRoomMode.toUpperCase().replace('_', ' ')} • {cameraAspectRatio}
+                      {cameraMode === 'video' ? 'LIVE VIDEO STREAM' : 'LIVE PHOTO VIEWFINDER'}
                     </span>
                   </div>
-
-                  {confirmedGps ? (
-                    <div className="bg-emerald-950/80 px-2 py-0.5 rounded text-[10px] text-emerald-300 border border-emerald-500/40">
-                      GPS ±{confirmedGps.accuracyMeters.toFixed(1)}m LOCKED
-                    </div>
-                  ) : (
-                    <div className="bg-amber-950/80 px-2 py-0.5 rounded text-[10px] text-amber-300 border border-amber-500/40">
-                      GPS AWAITING DOORSTEP FIX
-                    </div>
-                  )}
 
                   {isRecording ? (
                     <div className="flex items-center gap-2 bg-rose-950/80 px-2.5 py-1 rounded-md backdrop-blur-xs text-rose-300 border border-rose-500/40">
@@ -1107,351 +975,53 @@ export default function CapturePage() {
               </div>
             )}
 
-            {/* Manual File Attachment Mock */}
-            <div className="border border-dashed border-slate-300 rounded-xl p-6 text-center hover:bg-slate-50/50 transition-colors">
-              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-slate-700">
-                Or attach external telemetry documentation
-              </p>
-              <p className="text-xs text-slate-400 mt-0.5">
-                PDF calibration certificates, CSV data logs (Demonstration file dropzone)
-              </p>
-            </div>
+            {/* Upload Photo or Video File from Device */}
+            {!confirmedMedia && !stagedMedia && mediaStatus !== 'previewing' && mediaStatus !== 'recording' && (
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
+                    stageFileMedia(file);
+                  }
+                }}
+                className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-6 text-center hover:bg-blue-50/20 transition-all group"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      stageFileMedia(file);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2 group-hover:scale-105 transition-transform">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <p className="text-sm font-semibold text-slate-800">
+                  Or upload photos & videos from device
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Click to select or drag & drop high-resolution photos or video walkthroughs
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Real Browser GPS Geolocation Card */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
-                <span className="leading-snug">3. Spatial Geolocation & GPS Telemetry</span>
-              </CardTitle>
-              <div className="flex flex-wrap items-center gap-1.5">
-                {gpsStatus === 'idle' && (
-                  <Badge variant="neutral" dot>
-                    Sensor Idle (Unattached)
-                  </Badge>
-                )}
-                {gpsStatus === 'requesting' && (
-                  <Badge variant="info" dot>
-                    Acquiring Geolocation...
-                  </Badge>
-                )}
-                {gpsStatus === 'error' && (
-                  <Badge variant="error" dot>
-                    Capture Error
-                  </Badge>
-                )}
-                {gpsStatus === 'acquired' && confirmedGps && (
-                  <Badge variant="success" dot>
-                    GPS Confirmed & Attached
-                  </Badge>
-                )}
-                {gpsStatus === 'acquired' && !confirmedGps && stagedGps && (
-                  <Badge variant="pending" dot>
-                    Pending Review & Confirmation
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <CardDescription>
-              Lock doorstep GPS coordinates for workspace location verification.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            {/* Environment warning banners if unsupported or insecure */}
-            {!isGpsSupported && (
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Geolocation API Unsupported:</strong> This browser environment does not support <code>navigator.geolocation</code>. GPS tagging is unavailable.
-                </div>
-              </div>
-            )}
-
-            {!isGpsSecure && (
-              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong>Insecure Context:</strong> The Geolocation API is restricted to secure origins (HTTPS or localhost). Queries on insecure HTTP origins are blocked by browser security.
-                </div>
-              </div>
-            )}
-
-            {/* Error banner with retry button */}
-            {gpsError && (
-              <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 space-y-2.5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-rose-950">
-                        GPS Capture Failed ({gpsError.code})
-                      </p>
-                      <p className="text-rose-800 mt-0.5 leading-relaxed">
-                        {gpsError.message}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="border-rose-300 text-rose-800 hover:bg-rose-100 shrink-0"
-                    onClick={() => retryGps()}
-                    isLoading={isGpsAcquiring}
-                    leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                  >
-                    Retry
-                  </Button>
-                </div>
-                {gpsError.code === 'PERMISSION_DENIED' && (
-                  <p className="text-[11px] text-rose-700 bg-rose-100/60 p-2 rounded-lg">
-                    💡 <strong>Tip:</strong> Look for the lock or site settings icon near the URL bar in your browser, set Location to &quot;Allow&quot;, and click Retry.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Action Bar */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    Device Geolocation Control
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {confirmedGps
-                      ? `Attached fix: ${confirmedGps.latitude.toFixed(6)}°, ${confirmedGps.longitude.toFixed(6)}° (±${confirmedGps.accuracyMeters.toFixed(1)}m)`
-                      : stagedGps
-                      ? 'Fix acquired. Review and confirm attachment below.'
-                      : 'No geographical metadata attached to this draft.'}
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                  {/* Primary Trigger Button */}
-                  {!confirmedGps && !stagedGps && (
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                      onClick={() => getCurrentLocation()}
-                      isLoading={isGpsAcquiring}
-                      disabled={!isGpsSupported}
-                      leftIcon={<Crosshair className="w-4 h-4" />}
-                    >
-                      Get Current Location
-                    </Button>
-                  )}
-
-                  {/* Staged fix controls */}
-                  {stagedGps && !confirmedGps && (
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        onClick={openGpsReview}
-                        leftIcon={<Eye className="w-4 h-4" />}
-                      >
-                        Review Fix
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        onClick={confirmGps}
-                        leftIcon={<Check className="w-3.5 h-3.5" />}
-                      >
-                        Confirm & Attach
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => retryGps()}
-                        isLoading={isGpsAcquiring}
-                        leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                      >
-                        Retry
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearGps}
-                        leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                        className="text-rose-600 hover:text-rose-700"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Confirmed fix controls */}
-                  {confirmedGps && (
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        onClick={openGpsReview}
-                        leftIcon={<Eye className="w-4 h-4" />}
-                      >
-                        Review
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 sm:flex-none"
-                        onClick={() => getCurrentLocation()}
-                        isLoading={isGpsAcquiring}
-                        leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                      >
-                        Recapture
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearGps}
-                        leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                        className="text-rose-600 hover:text-rose-700"
-                      >
-                        Clear
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Optional manual coordinate entry fallback */}
-              {!confirmedGps && (
-                <div className="pt-3 border-t border-slate-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1">
-                    <span className="text-xs font-semibold text-slate-700">
-                      Manual Coordinates (Optional)
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Auto-filled by GPS above or enter manually
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Input
-                      label="Latitude"
-                      type="number"
-                      step="0.000001"
-                      placeholder="e.g. 37.774900"
-                      value={manualLat}
-                      onChange={(e) => setManualLat(e.target.value)}
-                    />
-                    <Input
-                      label="Longitude"
-                      type="number"
-                      step="0.000001"
-                      placeholder="e.g. -122.419400"
-                      value={manualLng}
-                      onChange={(e) => setManualLng(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Coordinates display grid (for either staged or confirmed fix) */}
-              {(confirmedGps || stagedGps) && (
-                <div className="pt-3 border-t border-slate-200 space-y-3">
-                  {stagedGps && !confirmedGps && (
-                    <div className="p-2.5 bg-amber-50/90 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>Fix acquired from browser. Review and confirm attachment before submitting.</span>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="primary"
-                        onClick={confirmGps}
-                        leftIcon={<Check className="w-3.5 h-3.5" />}
-                      >
-                        Confirm & Attach
-                      </Button>
-                    </div>
-                  )}
-
-                  {confirmedGps && (
-                    <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-xs text-emerald-800">
-                      <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>GPS coordinates confirmed and attached to record draft.</span>
-                    </div>
-                  )}
-
-                  {(() => {
-                    const activeLoc = confirmedGps || stagedGps;
-                    if (!activeLoc) return null;
-                    return (
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-white p-3 rounded-lg border border-slate-200">
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-slate-400 block font-sans">
-                            Latitude (WGS84)
-                          </span>
-                          <span className="font-mono font-medium text-slate-800 text-sm">
-                            {activeLoc.latitude.toFixed(6)}°
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-slate-400 block font-sans">
-                            Longitude (WGS84)
-                          </span>
-                          <span className="font-mono font-medium text-slate-800 text-sm">
-                            {activeLoc.longitude.toFixed(6)}°
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-slate-400 block font-sans">
-                            Reported Accuracy
-                          </span>
-                          <span className="font-mono font-medium text-slate-800 text-sm">
-                            ±{activeLoc.accuracyMeters.toFixed(1)} m
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-slate-400 block font-sans">
-                            Captured Timestamp
-                          </span>
-                          <span className="font-mono text-slate-700 text-xs truncate block" title={activeLoc.capturedAt}>
-                            {new Date(activeLoc.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Verification integrity notice / disclaimer */}
-                  <p className="text-[11px] text-slate-500 italic flex items-start gap-1.5 pt-1 leading-relaxed">
-                    <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                    <span>{GPS_VERIFICATION_DISCLAIMER}</span>
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Section 4: Submission & Simulated Demo Upload */}
+        {/* Section 3: Submission & Simulated Demo Upload */}
         <Card className="border-slate-200">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <CardTitle className="text-base">4. Final Verification & Submission</CardTitle>
+                <CardTitle className="text-base">3. Final Verification & Submission</CardTitle>
                 <CardDescription>Review draft completeness and commit to local ledger</CardDescription>
               </div>
               <Badge variant="warning" className="self-start sm:self-auto">Demo upload</Badge>
@@ -1583,7 +1153,6 @@ export default function CapturePage() {
                 setTitle('');
                 setNotes('');
                 removeConfirmedMedia();
-                clearGps();
                 setCreatedRecordId('');
               }}
             >
@@ -1595,21 +1164,23 @@ export default function CapturePage() {
                 size="sm"
                 onClick={() => {
                   setSubmittedModalOpen(false);
-                  router.push('/dashboard');
+                  router.push('/');
                 }}
               >
-                Dashboard
+                Workspaces Catalog
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSubmittedModalOpen(false);
-                  router.push('/records');
-                }}
-              >
-                Records Ledger
-              </Button>
+              {user?.role === 'admin' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSubmittedModalOpen(false);
+                    router.push('/admin');
+                  }}
+                >
+                  Admin Review Hub
+                </Button>
+              )}
               {createdRecordId && (
                 <Button
                   variant="primary"
@@ -1619,7 +1190,7 @@ export default function CapturePage() {
                     router.push(`/records/${createdRecordId}`);
                   }}
                 >
-                  View Record
+                  View Details
                 </Button>
               )}
             </div>
@@ -1646,168 +1217,11 @@ export default function CapturePage() {
             <p><strong>Facility:</strong> {facility}</p>
             <p><strong>Category:</strong> {workspaceCategory}</p>
             <p><strong>Optical Attachment:</strong> {confirmedMedia ? confirmedMedia.name : 'None attached'}</p>
-            <p>
-              <strong>GPS Tag:</strong>{' '}
-              {confirmedGps
-                ? `${confirmedGps.latitude.toFixed(6)}°, ${confirmedGps.longitude.toFixed(6)}° (±${confirmedGps.accuracyMeters.toFixed(1)}m)`
-                : 'Unattached'}
-            </p>
             <p className="text-blue-700 font-semibold pt-1">
-              • Saved to local in-memory session only. Never synced to remote databases.
+              • Submitted for verification. Once approved in Admin Hub, it goes live in the public catalog.
             </p>
           </div>
         </div>
-      </Dialog>
-
-      {/* GPS Review & Explicit Confirmation Dialog */}
-      <Dialog
-        isOpen={isGpsReviewOpen}
-        onClose={closeGpsReview}
-        title="Review Browser-Captured GPS Telemetry"
-        description="Inspect location coordinates and browser-reported uncertainty radius before confirming attachment to the draft record."
-        footer={
-          <div className="flex flex-wrap items-center justify-between gap-2 w-full">
-            <div>
-              {stagedGps && !confirmedGps ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={discardStagedGps}
-                  className="text-slate-600 hover:text-slate-900"
-                >
-                  Discard Fix
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    clearGps();
-                    closeGpsReview();
-                  }}
-                  className="text-rose-600 hover:text-rose-700"
-                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                >
-                  Remove Location
-                </Button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => retryGps()}
-                isLoading={isGpsAcquiring}
-                leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-              >
-                Retry Capture
-              </Button>
-              {stagedGps && !confirmedGps ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={confirmGps}
-                  leftIcon={<Check className="w-4 h-4" />}
-                >
-                  Confirm & Attach to Record
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={closeGpsReview}
-                >
-                  Done
-                </Button>
-              )}
-            </div>
-          </div>
-        }
-      >
-        {(() => {
-          const displayGps = stagedGps || confirmedGps;
-          if (!displayGps) {
-            return (
-              <p className="text-xs text-slate-500 py-4 text-center">
-                No GPS coordinates have been captured yet.
-              </p>
-            );
-          }
-          return (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">
-                    Latitude
-                  </span>
-                  <span className="font-mono text-base font-bold text-slate-900">
-                    {displayGps.latitude.toFixed(6)}°
-                  </span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">WGS84 Format</span>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  <span className="text-[10px] uppercase font-semibold text-slate-500 block">
-                    Longitude
-                  </span>
-                  <span className="font-mono text-base font-bold text-slate-900">
-                    {displayGps.longitude.toFixed(6)}°
-                  </span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">WGS84 Format</span>
-                </div>
-              </div>
-
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <span className="text-slate-500">Browser-Reported Accuracy:</span>
-                  <span className="font-mono font-semibold text-slate-900">
-                    ±{displayGps.accuracyMeters.toFixed(1)} meters
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <span className="text-slate-500">Captured At:</span>
-                  <span className="font-mono text-slate-900">
-                    {new Date(displayGps.timestamp).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <span className="text-slate-500">ISO Timestamp:</span>
-                  <span className="font-mono text-slate-700 text-[11px]">
-                    {displayGps.capturedAt}
-                  </span>
-                </div>
-                {displayGps.elevationMeters != null && (
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                    <span className="text-slate-500">Altitude / Elevation:</span>
-                    <span className="font-mono text-slate-900">
-                      +{displayGps.elevationMeters}m MSL
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Permission State:</span>
-                  <Badge variant="success" size="sm">
-                    {gpsPermissionState === 'granted' ? 'Access Granted' : gpsPermissionState}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-start gap-2.5 text-xs text-blue-900">
-                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <strong className="font-semibold block">Browser Telemetry Notice</strong>
-                  <p className="text-blue-800 leading-relaxed text-[11px]">
-                    {GPS_VERIFICATION_DISCLAIMER}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
       </Dialog>
     </div>
   );

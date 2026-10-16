@@ -72,66 +72,58 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
 
   return (
     <div
-      className={`group relative flex flex-col rounded-2xl bg-white border border-slate-200 shadow-xs hover:shadow-lg hover:border-slate-300 transition-all duration-200 overflow-hidden ${className}`}
+      className={`group relative flex flex-col rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden ${className}`}
     >
-      {/* Visual Media Header */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-900">
+      {/* Visual Media Header - Compact Height */}
+      <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-900">
         <div
           className={`absolute inset-0 bg-gradient-to-tr ${
             currentMedia?.previewColor || 'from-slate-800 via-indigo-950 to-slate-900'
-          } flex flex-col items-center justify-center p-4 text-center transition-transform duration-300 group-hover:scale-102`}
+          } flex flex-col items-center justify-center p-2 text-center transition-transform duration-300 group-hover:scale-102`}
         >
           {currentMedia?.type === 'video' ? (
             <div className="flex flex-col items-center text-white/95">
-              <div className="w-11 h-11 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-md mb-2">
-                <Video className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
+                <Video className="w-4 h-4 text-white" />
               </div>
-              <span className="text-[11px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
-                Video Walkthrough ({currentMedia.duration || '00:30'})
-              </span>
-              <span className="text-[11px] text-white/70 mt-1 max-w-[200px] truncate">
-                {currentMedia.fileName}
+              <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
+                Walkthrough ({currentMedia.duration || '00:30'})
               </span>
             </div>
           ) : (
             <div className="flex flex-col items-center text-white/95">
-              <div className="w-11 h-11 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-md mb-2">
-                <Camera className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
+                <Camera className="w-4 h-4 text-white" />
               </div>
-              <span className="text-[11px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
-                On-Site Optical Capture
-              </span>
-              <span className="text-[11px] text-white/70 mt-1 max-w-[200px] truncate">
-                {currentMedia?.description || currentMedia?.fileName || 'Workspace Still'}
+              <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
+                Optical Capture
               </span>
             </div>
           )}
         </div>
 
         {/* Top Badges */}
-        <div className="absolute top-2.5 sm:top-3 left-2.5 sm:left-3 right-2.5 sm:right-3 flex items-start justify-between gap-1.5 sm:gap-2 z-10 pointer-events-none">
-          {/* Workspace Category Badge */}
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-bold bg-white/95 backdrop-blur-md text-slate-800 shadow-sm border border-slate-200 shrink-0">
+        <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1 z-10 pointer-events-none">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-white/95 backdrop-blur-md text-slate-800 shadow-xs border border-slate-200 shrink-0">
             <Building2 className="w-3 h-3 text-blue-600" />
             {property.category || property.propertyCategory || 'Workspace'}
           </span>
 
-          {/* Verification Status Badge */}
           {isVerified && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-semibold bg-emerald-600 text-white shadow-sm shrink-0">
-              <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Verified GPS ({accuracyText})
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-600 text-white shadow-xs shrink-0">
+              <ShieldCheck className="w-3 h-3" />
+              GPS ({accuracyText})
             </span>
           )}
           {isPending && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-semibold bg-amber-500 text-white shadow-sm shrink-0">
-              <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-              Pending GPS
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500 text-white shadow-xs shrink-0">
+              <Clock className="w-3 h-3" />
+              Pending
             </span>
           )}
           {isFlagged && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[10px] sm:text-[11px] font-semibold bg-rose-600 text-white shadow-sm shrink-0">
-              Flagged (Retry)
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-600 text-white shadow-xs shrink-0">
+              Flagged
             </span>
           )}
         </div>
@@ -142,157 +134,104 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
             <button
               onClick={handlePrevMedia}
               aria-label="Previous photo"
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-opacity z-10"
+              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-opacity z-10"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3 h-3" />
             </button>
             <button
               onClick={handleNextMedia}
               aria-label="Next photo"
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-opacity z-10"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-opacity z-10"
             >
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3 h-3" />
             </button>
-            <div className="absolute bottom-2.5 right-3 bg-black/60 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded-full z-10">
+            <div className="absolute bottom-1.5 right-2 bg-black/60 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.2 rounded-full z-10">
               {activeMediaIndex + 1}/{mediaList.length}
             </div>
           </>
         )}
 
         {hasVideo && (
-          <div className="absolute bottom-2.5 left-3 bg-black/70 backdrop-blur-xs text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
-            <Video className="w-3 h-3 text-emerald-400" />
-            Walkthrough Video
+          <div className="absolute bottom-1.5 left-2 bg-black/70 backdrop-blur-xs text-emerald-300 text-[9px] font-semibold px-1.5 py-0.2 rounded-full flex items-center gap-1 z-10">
+            <Video className="w-2.5 h-2.5 text-emerald-400" />
+            Video
           </div>
         )}
       </div>
 
-      {/* Workspace Details Body */}
-      <div className="flex-1 p-4 sm:p-5 flex flex-col justify-between space-y-3.5">
+      {/* Workspace Details Body - Compact */}
+      <div className="p-3 flex flex-col justify-between space-y-2">
         <div>
           {/* Rent & Deposit Banner */}
-          <div className="flex items-baseline justify-between gap-2 mb-1.5">
-            <div className="text-lg font-black tracking-tight text-slate-900">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-base font-bold tracking-tight text-slate-900">
               {formatRent(rent)}
             </div>
             {deposit ? (
-              <span className="text-xs font-semibold text-slate-500">
+              <span className="text-[11px] font-medium text-slate-500">
                 {formatDeposit(deposit)}
               </span>
             ) : null}
           </div>
 
           {/* Title & Ref */}
-          <Link href={`/records/${property.id}`} className="block group/link">
-            <h3 className="text-base font-bold text-slate-900 group-hover/link:text-blue-600 transition-colors line-clamp-1">
+          <Link href={`/records/${property.id}`} className="block group/link mt-0.5">
+            <h3 className="text-xs sm:text-sm font-semibold text-slate-900 group-hover/link:text-blue-600 transition-colors line-clamp-1">
               {property.title}
             </h3>
           </Link>
 
           {/* Location & Address */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
-            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
+            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
             <span className="truncate">
               {property.location?.address || property.facility || 'On-Site Location'}
             </span>
           </div>
 
-          {/* Lat / Long Coordinates Line */}
-          {property.location?.latitude !== undefined && property.location?.longitude !== undefined && (
-            <div className="flex items-center gap-1.5 text-[11px] font-mono text-slate-400 mt-0.5">
-              <Compass className="w-3 h-3 text-slate-400 shrink-0" />
-              <span>
-                {property.location.latitude.toFixed(4)}°, {property.location.longitude.toFixed(4)}°
-              </span>
-            </div>
-          )}
-
-          {/* Core 11 Commercial Workspace Specs Grid */}
-          <div className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+          {/* Core Specs Chips - Streamlined single-line badges */}
+          <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
             {/* Area */}
-            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg p-2 text-slate-700">
-              <Maximize2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Area</div>
-                <div className="font-bold text-slate-900">
-                  {specs?.areaSqFt ? `${specs.areaSqFt.toLocaleString()} sqft` : '—'}
-                </div>
-              </div>
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
+              <Maximize2 className="w-3 h-3 text-blue-600 shrink-0" />
+              <span className="font-medium truncate">{specs?.areaSqFt ? `${specs.areaSqFt} sqft` : '—'}</span>
             </div>
 
             {/* Floor */}
-            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg p-2 text-slate-700">
-              <Layers className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Floor</div>
-                <div className="font-bold text-slate-900 truncate">
-                  {specs?.floorNumber !== undefined
-                    ? specs.totalFloors
-                      ? `${specs.floorNumber} / ${specs.totalFloors}`
-                      : `${specs.floorNumber}`
-                    : '—'}
-                </div>
-              </div>
-            </div>
-
-            {/* Clear Height & Beam Height */}
-            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg p-2 text-slate-700">
-              <Ruler className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Height / Beam</div>
-                <div className="font-bold text-slate-900">
-                  {specs?.clearHeightFt ? `${specs.clearHeightFt}ft` : '—'}
-                  {specs?.beamHeightFt ? ` (${specs.beamHeightFt}ft beam)` : ''}
-                </div>
-              </div>
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
+              <Layers className="w-3 h-3 text-indigo-600 shrink-0" />
+              <span className="font-medium truncate">
+                {specs?.floorNumber !== undefined
+                  ? `Fl ${specs.floorNumber}${specs.totalFloors ? `/${specs.totalFloors}` : ''}`
+                  : '—'}
+              </span>
             </div>
 
             {/* Washroom */}
-            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg p-2 text-slate-700">
-              <Bath className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Washroom</div>
-                <div className="font-bold text-slate-900">
-                  {specs?.washrooms !== undefined ? `${specs.washrooms} WC` : '—'}
-                </div>
-              </div>
-            </div>
-
-            {/* Power Backup */}
-            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg p-2 text-slate-700">
-              <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <div className="overflow-hidden">
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Power Backup</div>
-                <div className="font-bold text-slate-900 truncate" title={specs?.powerBackup || 'None'}>
-                  {specs?.powerBackup || '—'}
-                </div>
-              </div>
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
+              <Bath className="w-3 h-3 text-cyan-600 shrink-0" />
+              <span className="font-medium truncate">{specs?.washrooms !== undefined ? `${specs.washrooms} WC` : '—'}</span>
             </div>
 
             {/* Parking */}
-            <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg p-2 text-slate-700">
-              <Car className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Parking</div>
-                <div className="font-bold text-slate-900">
-                  {specs?.parkingSpaces !== undefined ? `${specs.parkingSpaces} slot(s)` : '—'}
-                </div>
-              </div>
+            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
+              <Car className="w-3 h-3 text-purple-600 shrink-0" />
+              <span className="font-medium truncate">{specs?.parkingSpaces !== undefined ? `${specs.parkingSpaces} Car` : '—'}</span>
             </div>
           </div>
         </div>
 
         {/* Card Footer */}
-        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-          <div className="text-slate-400 font-mono text-[11px] truncate">
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+          <div className="text-slate-400 font-mono text-[10px] truncate">
             {property.referenceNumber}
           </div>
 
           <Link
             href={`/records/${property.id}`}
-            className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 group-hover:translate-x-0.5 transition-all"
+            className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:text-blue-700 group-hover:translate-x-0.5 transition-all"
           >
-            View & Edit <ArrowRight className="w-3.5 h-3.5" />
+            View & Edit <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
       </div>

@@ -326,8 +326,9 @@ export class MockRecordRepository implements IRecordRepository {
       specs: updatedSpecs as any,
       pricing: updatedPricing as any,
       location: updatedLocation as any,
-      doorstepCoordinates: updatedLocation as any,
       verificationBadge: updates.verificationBadge || current.verificationBadge,
+      supervisorNote: updates.supervisorNote !== undefined ? updates.supervisorNote : current.supervisorNote,
+      reviewerName: updates.reviewerName || current.reviewerName,
     };
 
     this.records[index] = updatedRecord;

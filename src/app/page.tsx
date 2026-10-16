@@ -54,13 +54,13 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-full">
       {/* Clean Hero Header */}
-      <section className="bg-slate-900 text-white pt-6 sm:pt-8 pb-8 sm:pb-10 px-3.5 sm:px-6 lg:px-8 border-b border-slate-800 w-full min-w-0 overflow-hidden">
-        <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6">
+      <section className="bg-slate-900 text-white pt-4 sm:pt-8 pb-5 sm:pb-8 px-3.5 sm:px-6 lg:px-8 border-b border-slate-800 w-full min-w-0 overflow-hidden">
+        <div className="max-w-7xl mx-auto space-y-3.5 sm:space-y-5">
           {/* Top Status Pill */}
           <div className="flex items-center justify-between">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-[11px] sm:text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">
                 {isOfficer
                   ? `Field Officer Station • ${user?.displayName || 'Officer Alex Rivera'}`
                   : 'Workspace Capture & Verification Station'}
@@ -77,49 +77,48 @@ export default function HomePage() {
 
           {/* Heading */}
           <div className="max-w-2xl">
-            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white">
+            <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white">
               {isOfficer ? 'Field Officer Hub' : 'Verified Workspaces'}
             </h1>
-            <p className="mt-2 text-xs sm:text-base text-slate-300 leading-relaxed">
+            <p className="mt-1 text-xs sm:text-sm text-slate-300 leading-relaxed">
               {isOfficer
                 ? 'Your central workstation for on-site workspace submissions, telemetry GPS verification, and hardware captures.'
                 : 'Browse and capture on-site verified meeting rooms, executive offices, dedicated desks, and coworking labs with hardware GPS telemetry.'}
             </p>
           </div>
 
-          {/* Officer Action Buttons & Search - Both buttons in one place on Home */}
-          <div className="flex flex-col gap-3 max-w-3xl">
+          {/* Officer Action Buttons & Search - Sized and side-by-side on mobile */}
+          <div className="flex flex-col gap-2.5 sm:gap-3 max-w-3xl">
             {isOfficer && (
-              <div className="flex flex-wrap items-center gap-2.5 pb-1">
-                <Link href="/capture">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5">
+                <Link href="/capture" className="w-full sm:w-auto">
                   <Button
                     variant="primary"
-                    size="md"
-                    leftIcon={<Camera className="w-4 h-4" />}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                    size="sm"
+                    leftIcon={<Camera className="w-3.5 h-3.5 shrink-0" />}
+                    className="w-full sm:w-auto text-xs py-2 px-2.5 sm:px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-xs justify-center gap-1.5"
                   >
                     Capture Workspace
                   </Button>
                 </Link>
 
-                <Button
-                  variant="secondary"
-                  size="md"
-                  leftIcon={<FileSpreadsheet className="w-4 h-4 text-blue-600" />}
+                <button
+                  type="button"
                   onClick={() => {
                     setSelectedCategory('all');
                     setSearchQuery('');
                   }}
-                  className="bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 font-semibold"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs py-2 px-2.5 sm:px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 font-medium transition-colors cursor-pointer select-none"
                 >
-                  My Submissions ({officerTotal})
-                </Button>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span className="text-white font-medium">My Submissions ({officerTotal})</span>
+                </button>
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
               <div className="relative flex-1">
-                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
                   placeholder={
@@ -129,12 +128,12 @@ export default function HomePage() {
                   }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
                   >
                     Clear
                   </button>
@@ -145,9 +144,9 @@ export default function HomePage() {
                 <Link href="/capture" className="shrink-0 w-full sm:w-auto">
                   <Button
                     variant="primary"
-                    size="md"
-                    leftIcon={<Camera className="w-4 h-4" />}
-                    className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+                    size="sm"
+                    leftIcon={<Camera className="w-3.5 h-3.5 shrink-0" />}
+                    className="w-full sm:w-auto text-xs py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-xs justify-center gap-1.5"
                   >
                     Capture Workspace
                   </Button>
@@ -157,32 +156,32 @@ export default function HomePage() {
           </div>
 
           {/* Quick Metrics Strip */}
-          <div className="pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-xs">
+          <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
             {isOfficer ? (
               <>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-white">
+                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                  <span className="block text-base sm:text-xl font-bold text-white">
                     {officerTotal}
                   </span>
-                  <span className="text-slate-400 text-[11px]">My Submissions</span>
+                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">My Submissions</span>
                 </div>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-emerald-400">
+                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                  <span className="block text-base sm:text-xl font-bold text-emerald-400">
                     {officerVerified}
                   </span>
-                  <span className="text-slate-400 text-[11px]">Approved & Verified</span>
+                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Approved & Verified</span>
                 </div>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-amber-400">
+                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                  <span className="block text-base sm:text-xl font-bold text-amber-400">
                     {officerPending}
                   </span>
-                  <span className="text-slate-400 text-[11px]">Pending Review</span>
+                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Pending Review</span>
                 </div>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-rose-400">
+                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                  <span className="block text-base sm:text-xl font-bold text-rose-400">
                     {officerFlagged}
                   </span>
-                  <span className="text-slate-400 text-[11px]">Flagged / Revisions</span>
+                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Flagged / Revisions</span>
                 </div>
               </>
             ) : (
@@ -218,9 +217,9 @@ export default function HomePage() {
       </section>
 
       {/* Main Content Area: Category Filter & Grid */}
-      <section className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 min-w-0">
+      <section className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
         {/* Workspace Category Filter Pills */}
-        <div className="flex items-center justify-between gap-3 flex-wrap border-b border-slate-200 pb-3">
+        <div className="flex items-center justify-between gap-2.5 flex-wrap border-b border-slate-200 pb-2.5">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar touch-pan-x w-full sm:w-auto min-w-0">
             {categories.map((cat) => {
               const isSelected = selectedCategory === cat.id;
@@ -228,7 +227,7 @@ export default function HomePage() {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`shrink-0 px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`shrink-0 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
                     isSelected
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -240,28 +239,28 @@ export default function HomePage() {
             })}
           </div>
 
-          {!isOfficer && (
+          {user?.role === 'admin' && (
             <Link
-              href="/records"
+              href="/admin"
               className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center gap-1"
             >
-              Open Full Ledger <ArrowRight className="w-3.5 h-3.5" />
+              Admin Review Queue <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           )}
         </div>
 
         {/* Workspace Cards Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="h-80 rounded-2xl bg-slate-100 animate-pulse border border-slate-200"
+                className="h-56 rounded-xl bg-slate-100 animate-pulse border border-slate-200"
               />
             ))}
           </div>
         ) : records.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-5">
             {records.map((workspace) => (
               <PropertyCard key={workspace.id} property={workspace} />
             ))}
