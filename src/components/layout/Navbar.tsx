@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useAuth } from '@/hooks/useAuth';
+import { NavbarInstallButton } from '@/components/pwa/InstallAppPrompt';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -85,6 +86,7 @@ export function Navbar() {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-3">
+            <NavbarInstallButton />
             {isAuthenticated && user ? (
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-lg py-1 px-2.5">
                 <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
