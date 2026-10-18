@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isUnderMaxSize() {
+      // 50 MB hard limit enforced at storage edge
+      return request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    function isValidMediaType() {
+      return request.resource.contentType.matches('image/.*')
+          || request.resource.contentType.matches('video/.*')
+          || request.resource.contentType == 'application/pdf';
+    }
+
+    // Media assets isolated under media/{recordId}/{fileName}
+    match /media/{recordId}/{fileName} {
+      // Authenticated personnel can read media assets
+      allow read: if isAuthenticated();
+
+      // Authenticated personnel can upload valid media within limits
+      allow create: if isAuthenticated()
+                   && isUnderMaxSize()
+                   && isValidMediaType();
+
+      // Prevent overwriting uploaded media directly
+      allow update: if false;
+
+      // Only administrators can permanently delete raw storage media
+      allow delete: if isAuthenticated()
+                   && (request.auth.token.role == 'admin');
+    }
+  }
+}

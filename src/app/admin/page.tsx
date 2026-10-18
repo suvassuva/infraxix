@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Users,
@@ -30,6 +31,7 @@ import {
   Layers,
   Ruler,
   Zap,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -43,10 +45,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserProfile, CaptureRecord } from '@/types';
 
 export default function AdminPage() {
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, isLoading: authLoading } = useAuth();
   const { users, inviteUser, modifyUser } = useUsers();
   const { logs } = useAuditLogs();
   const { records, refetch: refetchRecords } = useRecords({ pageSize: 100 });
+
+  useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.push('/login?redirect=/admin');
+      } else if (user.role !== 'admin') {
+        router.push('/');
+      }
+    }
+  }, [user, authLoading, router]);
 
   // Officer Submissions Queue State
   const [submissionFilter, setSubmissionFilter] = useState<'pending' | 'all' | 'verified' | 'flagged'>('pending');
@@ -182,25 +195,6 @@ export default function AdminPage() {
     setNewUserEmail('');
   };
 
-  if (user?.role !== 'admin') {
-    return (
-      <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
-          <ShieldAlert className="w-6 h-6" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-900">Administrator Access Required</h2>
-        <p className="text-sm text-slate-500 max-w-md mx-auto">
-          User provisioning, submission approvals, and platform governance require Site Administrator privileges.
-        </p>
-        <div className="pt-2">
-          <Link href="/">
-            <Button variant="primary">Return to Workspaces</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   const handleOpenEdit = (user: UserProfile) => {
     setEditingUser(user);
     setEditRole(user.role);
@@ -221,8 +215,36 @@ export default function AdminPage() {
     }, 700);
   };
 
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 space-y-4">
+        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-slate-600">Verifying administrative security clearance...</p>
+      </div>
+    );
+  }
+
+  if (user.role !== 'admin') {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-24 text-center space-y-4">
+        <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto">
+          <ShieldAlert className="w-6 h-6" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900">Administrator Access Required</h2>
+        <p className="text-sm text-slate-500 max-w-md mx-auto">
+          User provisioning, submission approvals, and platform governance require Site Administrator privileges.
+        </p>
+        <div className="pt-2">
+          <Link href="/">
+            <Button variant="primary">Return to Workspaces</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6 min-w-0 overflow-hidden">
+    <div className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-4 pb-24 sm:py-8 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div
@@ -244,14 +266,11 @@ export default function AdminPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 sm:pb-6 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 sm:pb-5 border-b border-slate-200">
         <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              Admin Review & Platform Hub
-            </h1>
-            <Badge variant="error">Root Privileges</Badge>
-          </div>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
+            Admin Platform Hub
+          </h1>
           <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
             Review incoming field officer submissions, publish workspaces to live catalog, and manage personnel.
           </p>
@@ -261,8 +280,8 @@ export default function AdminPage() {
           <Button
             variant="outline"
             size="sm"
-            className="w-full sm:w-auto"
-            leftIcon={<RefreshCw className="w-4 h-4" />}
+            className="w-full sm:w-auto text-xs py-2"
+            leftIcon={<RefreshCw className="w-3.5 h-3.5 shrink-0" />}
             isLoading={diagnosticsRunning}
             onClick={handleRunDiagnostics}
           >
@@ -271,8 +290,8 @@ export default function AdminPage() {
           <Button
             variant="outline"
             size="sm"
-            className="w-full sm:w-auto"
-            leftIcon={<Download className="w-4 h-4" />}
+            className="w-full sm:w-auto text-xs py-2"
+            leftIcon={<Download className="w-3.5 h-3.5 shrink-0" />}
             onClick={() => alert('Demo export: Full administrative audit ledger exported.')}
           >
             Export Ledger
@@ -280,8 +299,8 @@ export default function AdminPage() {
           <Button
             variant="primary"
             size="sm"
-            className="col-span-2 sm:col-span-1 w-full sm:w-auto"
-            leftIcon={<UserPlus className="w-4 h-4" />}
+            className="col-span-2 sm:col-span-1 w-full sm:w-auto text-xs py-2 font-medium"
+            leftIcon={<UserPlus className="w-3.5 h-3.5 shrink-0" />}
             onClick={() => setInviteModalOpen(true)}
           >
             Provision Officer
@@ -290,62 +309,88 @@ export default function AdminPage() {
       </div>
 
       {/* KPI Overview Telemetry Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-        <Card className={pendingList.length > 0 ? 'border-amber-300 bg-amber-50/20' : ''}>
-          <CardContent className="p-4 sm:p-5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Pending Officer Submissions
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-amber-600">
-                {pendingList.length} Pending
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+        {/* Card 1: Pending Submissions */}
+        <Card className={`overflow-hidden ${pendingList.length > 0 ? 'border-amber-300 bg-amber-50/20' : ''}`}>
+          <CardContent className="p-3 sm:p-4.5 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
+                Pending
               </span>
-              <Badge variant={pendingList.length > 0 ? 'pending' : 'neutral'}>
-                {pendingList.length > 0 ? 'Action Needed' : 'Caught Up'}
+              <Badge
+                variant={pendingList.length > 0 ? 'pending' : 'neutral'}
+                size="sm"
+                className="shrink-0 text-[10px] px-1.5 py-0.5"
+              >
+                {pendingList.length > 0 ? 'Action' : 'Caught Up'}
               </Badge>
             </div>
-            <p className="text-xs text-slate-400 mt-1">Requires admin review to go live</p>
+            <div className="text-2xl sm:text-3xl font-bold text-amber-600 leading-tight">
+              {pendingList.length}
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">
+              {pendingList.length === 1 ? '1 Submission' : `${pendingList.length} Submissions`}
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Live Verified Workspaces
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-emerald-600">
-                {verifiedList.length} Live
+        {/* Card 2: Live Verified Workspaces */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-3 sm:p-4.5 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
+                Verified
               </span>
-              <Badge variant="success">Published</Badge>
+              <Badge variant="success" size="sm" className="shrink-0 text-[10px] px-1.5 py-0.5">
+                Live
+              </Badge>
             </div>
-            <p className="text-xs text-slate-400 mt-1">Visible on public catalog</p>
+            <div className="text-2xl sm:text-3xl font-bold text-emerald-600 leading-tight">
+              {verifiedList.length}
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">
+              Public Catalog
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Authorized Personnel
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-slate-900">{users.length} Accounts</span>
-              <Badge variant="neutral">Active</Badge>
+        {/* Card 3: Authorized Personnel */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-3 sm:p-4.5 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
+                Personnel
+              </span>
+              <Badge variant="neutral" size="sm" className="shrink-0 text-[10px] px-1.5 py-0.5">
+                Active
+              </Badge>
             </div>
-            <p className="text-xs text-slate-400 mt-1">Field officers & supervisors</p>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">
+              {users.length}
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">
+              Staff Accounts
+            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-4 sm:p-5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Audit Event Trail
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-slate-900">{logs.length} Events</span>
-              <Badge variant="info">Monitored</Badge>
+        {/* Card 4: Audit Event Trail */}
+        <Card className="overflow-hidden">
+          <CardContent className="p-3 sm:p-4.5 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between gap-1 mb-1.5">
+              <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 truncate">
+                Security Audit
+              </span>
+              <Badge variant="info" size="sm" className="shrink-0 text-[10px] px-1.5 py-0.5">
+                Logged
+              </Badge>
             </div>
-            <p className="text-xs text-slate-400 mt-1">Client security log buffer</p>
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">
+              {logs.length}
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-1 truncate">
+              Audit Events
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -435,23 +480,6 @@ export default function AdminPage() {
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setSubmissionFilter('flagged')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
-              submissionFilter === 'flagged'
-                ? 'bg-rose-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-            }`}
-          >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Flagged / Revisions</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-              submissionFilter === 'flagged' ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-800'
-            }`}>
-              {flaggedList.length}
-            </span>
-          </button>
         </div>
 
         <CardContent className="p-0">
@@ -1011,8 +1039,9 @@ export default function AdminPage() {
       <Dialog
         isOpen={inviteModalOpen}
         onClose={() => setInviteModalOpen(false)}
-        title="Provision New Inspector Account"
+        title="Provision Officer Account"
         description="Add a new verified field team member to the local roster."
+        size="sm"
         footer={
           <>
             <Button variant="outline" size="sm" onClick={() => setInviteModalOpen(false)}>
@@ -1049,15 +1078,19 @@ export default function AdminPage() {
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
               Access Role Tier
             </label>
-            <select
-              value={newUserRole}
-              onChange={(e) => setNewUserRole(e.target.value as 'officer' | 'supervisor' | 'admin')}
-              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="officer">Field Officer</option>
-              <option value="supervisor">Safety Supervisor</option>
-              <option value="admin">System Administrator</option>
-            </select>
+            <div className="relative rounded-lg shadow-xs">
+              <select
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value as 'officer' | 'admin')}
+                className="block w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+              >
+                <option value="officer">Field Officer</option>
+                <option value="admin">System Administrator</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
           </div>
         </form>
       </Dialog>
@@ -1070,6 +1103,7 @@ export default function AdminPage() {
         onClose={() => setEditingUser(null)}
         title={`Modify Permissions: ${editingUser?.name || editingUser?.displayName || 'User'}`}
         description="Update role privileges and account activation status."
+        size="sm"
         footer={
           <>
             <Button variant="outline" size="sm" onClick={() => setEditingUser(null)}>
@@ -1086,29 +1120,38 @@ export default function AdminPage() {
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
               Assigned Role Tier
             </label>
-            <select
-              value={editRole}
-              onChange={(e) => setEditRole(e.target.value as 'officer' | 'supervisor' | 'admin')}
-              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="officer">Field Officer</option>
-              <option value="supervisor">Safety Supervisor</option>
-              <option value="admin">System Administrator</option>
-            </select>
+            <div className="relative rounded-lg shadow-xs">
+              <select
+                value={editRole}
+                onChange={(e) => setEditRole(e.target.value as 'officer' | 'admin')}
+                className="block w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+              >
+                <option value="officer">Field Officer</option>
+                <option value="admin">System Administrator</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
               Account Status
             </label>
-            <select
-              value={editStatus}
-              onChange={(e) => setEditStatus(e.target.value as 'active' | 'suspended')}
-              className="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="active">Active (Full Access)</option>
-              <option value="suspended">Suspended (Access Revoked)</option>
-            </select>
+            <div className="relative rounded-lg shadow-xs">
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as 'active' | 'suspended')}
+                className="block w-full appearance-none rounded-lg border border-slate-300 bg-white px-3 py-2 pr-9 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+              >
+                <option value="active">Active (Full Access)</option>
+                <option value="suspended">Suspended (Access Revoked)</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
           </div>
         </div>
       </Dialog>

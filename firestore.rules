@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : null;
+    }
+
+    function getUserRole() {
+      return request.auth.token.role != null
+        ? request.auth.token.role
+        : (getUserData() != null && getUserData().role != null ? getUserData().role : 'officer');
+    }
+
+    function isOfficer() {
+      return isAuthenticated();
+    }
+
+    function isSupervisor() {
+      return isAuthenticated() && (getUserRole() == 'supervisor' || getUserRole() == 'admin');
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    function isOwner(record) {
+      return isAuthenticated() && record.ownerUid == request.auth.uid;
+    }
+
+    function hasValidMetadataOnly() {
+      // Strictly prevent media binary payloads in Firestore documents
+      return !('binary' in request.resource.data)
+          && !('fileData' in request.resource.data)
+          && !('blob' in request.resource.data)
+          && !('buffer' in request.resource.data);
+    }
+
+    function isValidCoordinates(loc) {
+      return loc == null || (
+        loc.latitude is number &&
+        loc.latitude >= -90.0 &&
+        loc.latitude <= 90.0 &&
+        loc.longitude is number &&
+        loc.longitude >= -180.0 &&
+        loc.longitude <= 180.0 &&
+        (loc.accuracy == null || (loc.accuracy is number && loc.accuracy >= 0))
+      );
+    }
+
+    // User Profiles Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // On registration, user can create their own doc but cannot escalate role to admin/supervisor
+      allow create: if isAuthenticated() && request.auth.uid == userId
+        && (!('role' in request.resource.data) || request.resource.data.role == 'officer');
+      // Only admins can change a user's role; users can update their other profile fields
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Records Collection
+    match /records/{recordId} {
+      // Authenticated users can read records
+      allow read: if isAuthenticated();
+
+      // Field officers can create records with verified identity & ownership
+      allow create: if isOfficer()
+        // NEVER trust ownerUid from browser input: must strictly match request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() >= 3
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.category is string
+        && request.resource.data.category.size() > 0
+        && request.resource.data.status in ['draft', 'pending']
+        && isValidCoordinates(request.resource.data.location)
+        && hasValidMetadataOnly();
+
+      // Updates:
+      // - ownerUid is strictly immutable
+      // - Supervisors and Admins can update status, notes, verification
+      // - Owners can only edit their own records if in draft or pending status, and cannot self-certify
+      allow update: if isAuthenticated()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && hasValidMetadataOnly()
+        && (
+          isSupervisor() ||
+          (
+            isOwner(resource.data)
+            && resource.data.status in ['draft', 'pending']
+            && request.resource.data.status in ['draft', 'pending']
+          )
+        );
+
+      // Deletions: Admins or Owner (only if draft/pending)
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        (isOwner(resource.data) && resource.data.status in ['draft', 'pending'])
+      );
+    }
+
+    // Immutable Audit Logs Collection
+    match /auditLogs/{logId} {
+      allow read: if isSupervisor();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Append-only audit integrity
+    }
+  }
+}

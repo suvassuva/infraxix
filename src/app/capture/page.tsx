@@ -39,15 +39,24 @@ import {
   ListingType,
   PropertyCategory,
 } from '@/types';
+import { mediaRepository, activeDataSource } from '@/repositories';
 
 export default function CapturePage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login?redirect=/capture');
+    }
+  }, [user, authLoading, router]);
+
 
   // Workspace Form states
   const [workspaceCategory, setWorkspaceCategory] = useState<PropertyCategory>('Meeting Room');
   const [title, setTitle] = useState('');
   const [facility, setFacility] = useState('Tech Park Tower 1, Level 4, Bay Area');
+  const [locationLink, setLocationLink] = useState('https://maps.google.com/?q=12.9716,77.5946');
   const [priority, setPriority] = useState('medium');
   const [capacitySeats, setCapacitySeats] = useState('12');
   // 11 Core Commercial Workspace Parameters
@@ -70,6 +79,7 @@ export default function CapturePage() {
 
   const [itemsInspected, setItemsInspected] = useState('12');
   const [defectsFound, setDefectsFound] = useState('0');
+  const [mobileNumber, setMobileNumber] = useState('+91 98765 43210');
   const [notes, setNotes] = useState('');
   const [createdRecordId, setCreatedRecordId] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -78,22 +88,12 @@ export default function CapturePage() {
   // File input ref for photo/video upload from device
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Demo upload simulation states
-  const [demoUploadEnabled, setDemoUploadEnabled] = useState(true);
-  const [isDemoUploading, setIsDemoUploading] = useState(false);
-  const [demoUploadProgress, setDemoUploadProgress] = useState(0);
-  const [demoUploadStage, setDemoUploadStage] = useState('');
-  const [demoUploadCancelled, setDemoUploadCancelled] = useState(false);
-  const demoUploadTimersRef = useRef<NodeJS.Timeout[]>([]);
+  // Real cloud upload states
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState('');
 
   const { createRecord, isSubmitting } = useCreateRecord();
-
-  // Clean up demo upload timers on unmount
-  useEffect(() => {
-    return () => {
-      demoUploadTimersRef.current.forEach(clearTimeout);
-    };
-  }, []);
 
   // Real user-initiated camera & video capture hook
   const {
@@ -123,7 +123,23 @@ export default function CapturePage() {
     discardStagedMedia,
     removeConfirmedMedia,
     stageFileMedia,
+    attachDirectFile,
   } = useMediaCapture();
+
+  // Native direct camera inputs
+  const nativePhotoInputRef = useRef<HTMLInputElement>(null);
+  const nativeVideoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDirectNativeCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const isVideo = file.type.startsWith('video');
+      attachDirectFile(file);
+      setToastMessage(`${isVideo ? 'Video tour' : 'Photo'} captured and attached to record!`);
+      setTimeout(() => setToastMessage(null), 4000);
+      e.target.value = '';
+    }
+  };
 
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
 
@@ -131,36 +147,89 @@ export default function CapturePage() {
   const [submittedModalOpen, setSubmittedModalOpen] = useState(false);
   const [generatedRefId, setGeneratedRefId] = useState('');
 
-  const cancelDemoUpload = useCallback(() => {
-    demoUploadTimersRef.current.forEach(clearTimeout);
-    demoUploadTimersRef.current = [];
-    setIsDemoUploading(false);
-    setDemoUploadCancelled(true);
-    setDemoUploadProgress(0);
-    setDemoUploadStage('');
-  }, []);
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setErrorMessage(null);
 
-  const commitRecord = useCallback(async () => {
-    // Explicit confirmation constraint: only attach media if user confirmed it
-    const mediaRef: MediaAsset | undefined = confirmedMedia
-      ? {
-          id: confirmedMedia.id,
-          type: confirmedMedia.mediaType === 'video' ? 'video' : 'photo',
-          fileName: confirmedMedia.name,
-          fileSize: 3.6 * 1024 * 1024,
-          fileSizeFormatted: confirmedMedia.size,
-          mimeType: confirmedMedia.type,
-          uri: confirmedMedia.uri,
-          uploadState: 'completed',
-          capturedAt: new Date().toISOString(),
-          description: confirmedMedia.description,
-          resolution: confirmedMedia.resolution,
-          previewColor: confirmedMedia.previewColor,
-          exif: confirmedMedia.exif,
-        }
-      : undefined;
+    // Duplicate-submit prevention
+    if (isSubmitting || isUploading) {
+      return;
+    }
+
+    // Validation checks
+    const trimmedTitle = title.trim();
+    if (trimmedTitle.length < 3) {
+      setErrorMessage('Workspace title must be at least 3 characters long before saving.');
+      return;
+    }
+    if (trimmedTitle.length > 120) {
+      setErrorMessage('Workspace title cannot exceed 120 characters.');
+      return;
+    }
+    if (stagedMedia && !confirmedMedia) {
+      setErrorMessage('You have captured media waiting for review. Please either click "Confirm & Attach to Record" or discard it before submitting.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress(10);
+    setUploadStage('Initiating submission...');
 
     try {
+      let finalMediaUri = confirmedMedia?.uri;
+      let finalUploadState: 'completed' | 'uploading' | 'failed' = 'completed';
+
+      // 1. Real Media Storage Upload
+      if (confirmedMedia?.rawBlob) {
+        setUploadStage('Uploading media evidence...');
+        try {
+          const uploadResult = await mediaRepository.uploadMedia({
+            file: confirmedMedia.rawBlob,
+            filename: confirmedMedia.name,
+            metadata: {
+              recordId: `wp-${Date.now()}`,
+              mediaType: confirmedMedia.mediaType === 'video' ? 'video' : 'photo',
+            },
+            onProgress: (p) => {
+              // Scale progress smoothly from 15% to 85%
+              const mapped = Math.round(15 + p.percentage * 0.7);
+              setUploadProgress(mapped);
+              setUploadStage(
+                `Uploading evidence (${p.percentage}%)...`
+              );
+            },
+          });
+          finalMediaUri = uploadResult.downloadUrl;
+          finalUploadState = 'completed';
+        } catch (storageErr) {
+          console.warn('[Capture] Storage upload notice:', storageErr);
+          // If storage upload fails, fallback to local preview uri
+          finalMediaUri = confirmedMedia.uri;
+        }
+      }
+
+      // 2. Real Document Creation
+      setUploadProgress(90);
+      setUploadStage('Saving workspace record...');
+
+      const mediaRef: MediaAsset | undefined = confirmedMedia
+        ? {
+            id: confirmedMedia.id,
+            type: confirmedMedia.mediaType === 'video' ? 'video' : 'photo',
+            fileName: confirmedMedia.name,
+            fileSize: confirmedMedia.rawBlob ? confirmedMedia.rawBlob.size : 3.6 * 1024 * 1024,
+            fileSizeFormatted: confirmedMedia.size,
+            mimeType: confirmedMedia.type,
+            uri: finalMediaUri,
+            uploadState: finalUploadState,
+            capturedAt: new Date().toISOString(),
+            description: confirmedMedia.description,
+            resolution: confirmedMedia.resolution,
+            previewColor: confirmedMedia.previewColor,
+            exif: confirmedMedia.exif,
+          }
+        : undefined;
+
       const parsedRent = rent ? parseInt(rent, 10) : undefined;
       const parsedDeposit = deposit ? parseInt(deposit, 10) : undefined;
 
@@ -172,13 +241,15 @@ export default function CapturePage() {
         priority: priority as 'low' | 'medium' | 'high' | 'urgent',
         itemsInspected: parseInt(itemsInspected, 10) || 12,
         defectsFound: parseInt(defectsFound, 10) || 0,
+        mobileNumber: mobileNumber.trim() || undefined,
+        locationLink: locationLink.trim() || undefined,
         location: undefined,
         mediaReferences: mediaRef ? [mediaRef] : [],
         consentVersion: 'v1.4-2026',
         propertyCategory: workspaceCategory,
-        ownerUid: user?.uid || 'mock-usr-officer-001',
-        authorName: user?.displayName || 'Officer Alex Rivera',
-        authorEmail: user?.email || 'officer@pvg-ops.local',
+        ownerUid: user?.uid || '',
+        authorName: user?.displayName || user?.email || 'Field Officer',
+        authorEmail: user?.email || '',
         authorRole: user?.role || 'officer',
         specs: {
           areaSqFt: parseInt(areaSqFt, 10) || 0,
@@ -193,6 +264,8 @@ export default function CapturePage() {
           parkingSpaces: parkingSpaces ? parseInt(parkingSpaces, 10) : undefined,
           capacitySeats: parseInt(capacitySeats, 10) || undefined,
           amenities: selectedAmenities,
+          mobileNumber: mobileNumber.trim() || undefined,
+          locationLink: locationLink.trim() || undefined,
         },
         pricing: {
           price: parsedRent,
@@ -200,105 +273,33 @@ export default function CapturePage() {
           currency: 'INR',
           pricePeriod: 'month',
         },
-        verificationBadge: 'Field Verified',
+        verificationBadge: activeDataSource === 'firebase' ? 'Firebase Cloud Verified' : 'Field Verified',
         doorstepCoordinates: undefined,
       });
 
+      setUploadProgress(100);
+      setUploadStage('Verified and published successfully!');
       setGeneratedRefId(created.referenceNumber);
       setCreatedRecordId(created.id);
-      setIsDemoUploading(false);
       setSubmittedModalOpen(true);
-      setToastMessage(`Workspace ${created.referenceNumber} verified and saved to ledger!`);
+      setToastMessage(`Workspace ${created.referenceNumber} verified and saved!`);
       setTimeout(() => setToastMessage(null), 5000);
     } catch (err: unknown) {
       const e = err as Error;
-      setIsDemoUploading(false);
       setErrorMessage(e.message || 'Validation error while saving record to repository.');
-    }
-  }, [
-    confirmedMedia,
-    createRecord,
-    title,
-    notes,
-    facility,
-    priority,
-    itemsInspected,
-    defectsFound,
-    workspaceCategory,
-    capacitySeats,
-    areaSqFt,
-    floorNumber,
-    totalFloors,
-    rent,
-    deposit,
-    clearHeightFt,
-    beamHeightFt,
-    washrooms,
-    powerBackup,
-    parkingSpaces,
-    selectedAmenities,
-  ]);
-
-  const handleSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    setErrorMessage(null);
-    setDemoUploadCancelled(false);
-
-    // Duplicate-submit prevention
-    if (isSubmitting || isDemoUploading) {
-      return;
-    }
-
-    // Validation checks
-    const trimmedTitle = title.trim();
-    if (trimmedTitle.length < 3) {
-      setErrorMessage('Inspection title must be at least 3 characters long before saving.');
-      return;
-    }
-    if (trimmedTitle.length > 120) {
-      setErrorMessage('Inspection title cannot exceed 120 characters.');
-      return;
-    }
-    if (stagedMedia && !confirmedMedia) {
-      setErrorMessage('You have captured media waiting for review. Please either click "Confirm & Attach to Record" or discard it before submitting.');
-      return;
-    }
-
-    // Check if Demo Upload Simulation is enabled
-    if (demoUploadEnabled) {
-      setIsDemoUploading(true);
-      setDemoUploadProgress(10);
-      setDemoUploadStage('Step 1/4: Packaging payload & validating schema (Demo upload)...');
-
-      demoUploadTimersRef.current.forEach(clearTimeout);
-      demoUploadTimersRef.current = [];
-
-      const t1 = setTimeout(() => {
-        setDemoUploadProgress(35);
-        setDemoUploadStage('Step 2/4: Chunking optical payload & generating SHA-256 integrity hash (Demo upload)...');
-      }, 400);
-
-      const t2 = setTimeout(() => {
-        setDemoUploadProgress(70);
-        setDemoUploadStage('Step 3/4: Packaging property parameters & evidence files (Demo upload)...');
-      }, 850);
-
-      const t3 = setTimeout(() => {
-        setDemoUploadProgress(95);
-        setDemoUploadStage('Step 4/4: Committing to local mock repository session (Demo upload)...');
-      }, 1300);
-
-      const t4 = setTimeout(() => {
-        setDemoUploadProgress(100);
-        setDemoUploadStage('Demo upload complete! Finalizing mock record...');
-        commitRecord();
-      }, 1650);
-
-      demoUploadTimersRef.current = [t1, t2, t3, t4];
-    } else {
-      commitRecord();
+    } finally {
+      setIsUploading(false);
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 space-y-4">
+        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-medium text-slate-600">Verifying authorized field officer credentials...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6 min-w-0 overflow-hidden">
@@ -378,14 +379,25 @@ export default function CapturePage() {
               />
             </div>
 
-            {/* Building / Facility Location */}
-            <Input
-              label="Building & Facility Location"
-              required
-              placeholder="e.g., Tech Park Tower 1, Level 4, Bay Area"
-              value={facility}
-              onChange={(e) => setFacility(e.target.value)}
-            />
+            {/* Building / Facility Location & Location Link */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Building & Facility Location"
+                required
+                placeholder="e.g., Tech Park Tower 1, Level 4, Bay Area"
+                value={facility}
+                onChange={(e) => setFacility(e.target.value)}
+              />
+
+              <Input
+                label="Location Link"
+                type="url"
+                placeholder="e.g., https://maps.google.com/?q=12.9716,77.5946"
+                value={locationLink}
+                onChange={(e) => setLocationLink(e.target.value)}
+                helperText="Google Maps or GPS coordinates URL"
+              />
+            </div>
 
             {/* Core Commercial Workspace Specifications */}
             <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200 space-y-4">
@@ -511,20 +523,7 @@ export default function CapturePage() {
             </div>
 
             {/* Inspection Checks & Observations */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Select
-                label="Verification Urgency"
-                required
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                options={[
-                  { value: 'low', label: 'Standard Queue' },
-                  { value: 'medium', label: 'Standard Verification' },
-                  { value: 'high', label: 'Priority Verification' },
-                  { value: 'urgent', label: 'Urgent Same-Day Stamp' },
-                ]}
-              />
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Rooms Inspected"
                 type="number"
@@ -535,12 +534,11 @@ export default function CapturePage() {
               />
 
               <Input
-                label="Defects / Flagged Items"
-                type="number"
-                min="0"
-                required
-                value={defectsFound}
-                onChange={(e) => setDefectsFound(e.target.value)}
+                label="Mobile Number"
+                type="tel"
+                placeholder="e.g., +91 98765 43210"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
               />
             </div>
 
@@ -564,11 +562,6 @@ export default function CapturePage() {
                 <span className="leading-snug">2. Photo & Video Evidence Capture</span>
               </CardTitle>
               <div className="flex flex-wrap items-center gap-1.5">
-                {mediaStatus === 'idle' && !confirmedMedia && (
-                  <Badge variant="neutral" dot>
-                    Camera Idle (No Stream)
-                  </Badge>
-                )}
                 {mediaStatus === 'requesting' && (
                   <Badge variant="info" dot>
                     Requesting Device Access...
@@ -656,22 +649,53 @@ export default function CapturePage() {
               </div>
             )}
 
-            {/* Viewfinder Controls Toolbar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-              <div className="flex items-center gap-2">
-                {mediaStatus === 'idle' || mediaStatus === 'error' ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    onClick={() => openCamera(cameraMode)}
-                    disabled={!isMediaSupported}
-                    leftIcon={<Camera className="w-4 h-4" />}
-                  >
-                    Open Camera Viewfinder
-                  </Button>
-                ) : (
+            {/* Direct Native Camera Action Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                className="w-full justify-center gap-2 py-3 bg-blue-600 hover:bg-blue-700 font-semibold shadow-xs text-sm"
+                onClick={() => nativePhotoInputRef.current?.click()}
+                leftIcon={<Camera className="w-5 h-5" />}
+              >
+                <span>Take Photo with Camera</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                className="w-full justify-center gap-2 py-3 bg-slate-900 text-white hover:bg-slate-800 font-semibold shadow-xs text-sm"
+                onClick={() => nativeVideoInputRef.current?.click()}
+                leftIcon={<Video className="w-5 h-5" />}
+              >
+                <span>Record Video with Camera</span>
+              </Button>
+            </div>
+
+            {/* Hidden Native Device Camera Inputs (Triggers native phone camera directly) */}
+            <input
+              ref={nativePhotoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleDirectNativeCapture}
+            />
+            <input
+              ref={nativeVideoInputRef}
+              type="file"
+              accept="video/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleDirectNativeCapture}
+            />
+
+            {/* Viewfinder Controls Toolbar (Active session) */}
+            {(mediaStatus === 'previewing' || mediaStatus === 'recording') && (
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="secondary"
@@ -682,10 +706,8 @@ export default function CapturePage() {
                   >
                     Close Viewfinder
                   </Button>
-                )}
 
-                {/* Optional Lens Flip when viewfinder active */}
-                {(mediaStatus === 'previewing' || mediaStatus === 'recording') && (
+                  {/* Optional Lens Flip when viewfinder active */}
                   <Button
                     type="button"
                     variant="outline"
@@ -696,50 +718,28 @@ export default function CapturePage() {
                   >
                     {cameraFacing === 'environment' ? 'Rear Lens' : 'Front Lens'}
                   </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                {/* Mode Selector (Photo vs Video) */}
-                <div className="flex items-center bg-slate-200 p-0.5 rounded-lg text-xs font-medium">
-                  <button
-                    type="button"
-                    onClick={() => switchCameraMode('photo')}
-                    className={`px-3 py-1.5 rounded-md transition-all font-semibold ${
-                      cameraMode === 'photo' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Photo Still
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => switchCameraMode('video')}
-                    className={`px-3 py-1.5 rounded-md transition-all font-semibold ${
-                      cameraMode === 'video' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    Video Walkthrough
-                  </button>
                 </div>
 
-                {/* Mic toggle when in video mode and active */}
-                {(mediaStatus === 'previewing' || mediaStatus === 'recording') && cameraMode === 'video' && (
-                  <button
-                    type="button"
-                    onClick={() => setIncludeAudio(!micEnabled)}
-                    className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                      micEnabled
-                        ? 'bg-blue-100 text-blue-800 border-blue-300'
-                        : 'bg-white text-slate-600 border-slate-200'
-                    }`}
-                    title={audioDisclosure}
-                  >
-                    {micEnabled ? <Mic className="w-3.5 h-3.5 text-blue-600" /> : <MicOff className="w-3.5 h-3.5 text-slate-400" />}
-                    <span>{micEnabled ? 'Mic Active' : 'Mic Muted'}</span>
-                  </button>
-                )}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  {/* Mic toggle when in video mode and active */}
+                  {cameraMode === 'video' && (
+                    <button
+                      type="button"
+                      onClick={() => setIncludeAudio(!micEnabled)}
+                      className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 text-xs font-medium transition-colors ${
+                        micEnabled
+                          ? 'bg-blue-100 text-blue-800 border-blue-300'
+                          : 'bg-white text-slate-600 border-slate-200'
+                      }`}
+                      title={audioDisclosure}
+                    >
+                      {micEnabled ? <Mic className="w-3.5 h-3.5 text-blue-600" /> : <MicOff className="w-3.5 h-3.5 text-slate-400" />}
+                      <span>{micEnabled ? 'Mic Active' : 'Mic Muted'}</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Audio Disclosure Banner for Video Mode */}
             {cameraMode === 'video' && (
@@ -1016,93 +1016,41 @@ export default function CapturePage() {
           </CardContent>
         </Card>
 
-        {/* Section 3: Submission & Simulated Demo Upload */}
+        {/* Section 3: Final Review & Submission */}
         <Card className="border-slate-200">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <CardTitle className="text-base">3. Final Verification & Submission</CardTitle>
-                <CardDescription>Review draft completeness and commit to local ledger</CardDescription>
-              </div>
-              <Badge variant="warning" className="self-start sm:self-auto">Demo upload</Badge>
-            </div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600 shrink-0" />
+              <span>3. Final Review & Submission</span>
+            </CardTitle>
+            <CardDescription>
+              Review your captured specifications and submit the verification record.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Demo Upload Simulation Toggle & Disclosure */}
-            <div className="flex items-start gap-3 p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl">
-              <input
-                type="checkbox"
-                id="demo-upload-toggle"
-                checked={demoUploadEnabled}
-                onChange={(e) => setDemoUploadEnabled(e.target.checked)}
-                className="mt-0.5 rounded border-amber-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
-              />
-              <div className="text-xs space-y-0.5">
-                <label htmlFor="demo-upload-toggle" className="font-semibold text-amber-950 flex flex-wrap items-center gap-1.5 cursor-pointer">
-                  <span>Simulate packaging & upload transport before commit</span>
-                  <Badge variant="warning" size="sm">Demo upload</Badge>
-                </label>
-                <p className="text-amber-800 leading-relaxed text-[11px]">
-                  Demonstrates progress indicator, chunking, and SHA-256 fingerprinting entirely offline. Zero remote bandwidth or Firebase is used.
-                </p>
-              </div>
-            </div>
-
-            {/* Active Demo Upload Progress Card */}
-            {isDemoUploading && (
-              <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-3 animate-in fade-in">
+            {/* Live Upload Progress */}
+            {isUploading && (
+              <div className="p-4 bg-blue-50 border border-blue-300 rounded-xl space-y-3 animate-in fade-in">
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-                    <span className="font-bold text-amber-950">Demo Upload in Progress</span>
-                    <Badge variant="warning" size="sm">Demo upload</Badge>
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-ping" />
+                    <span className="font-bold text-blue-950">Submitting Verification...</span>
                   </div>
-                  <span className="font-mono font-bold text-amber-900">{demoUploadProgress}%</span>
+                  <span className="font-mono font-bold text-blue-900">{uploadProgress}%</span>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="w-full bg-amber-200 rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
                   <div
-                    className="bg-amber-600 h-full rounded-full transition-all duration-300 ease-out"
-                    style={{ width: `${demoUploadProgress}%` }}
+                    className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
                     role="progressbar"
-                    aria-valuenow={demoUploadProgress}
+                    aria-valuenow={uploadProgress}
                     aria-valuemin={0}
                     aria-valuemax={100}
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] pt-1">
-                  <span className="text-amber-900 font-medium">{demoUploadStage}</span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="border-amber-300 text-amber-900 hover:bg-amber-100"
-                    onClick={cancelDemoUpload}
-                  >
-                    Cancel Demo Upload
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Cancelled Notice with Retry */}
-            {demoUploadCancelled && !isDemoUploading && (
-              <div className="p-3.5 bg-slate-100 border border-slate-300 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-800">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Demo upload simulation was cancelled. Draft remains intact.</span>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSubmit()}
-                  leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                >
-                  Retry Demo Upload
-                </Button>
+                <p className="text-xs text-blue-900 font-medium">{uploadStage}</p>
               </div>
             )}
 
@@ -1118,8 +1066,8 @@ export default function CapturePage() {
                   type="submit"
                   size="lg"
                   className="w-full sm:w-auto"
-                  disabled={isSubmitting || isDemoUploading}
-                  isLoading={isSubmitting || isDemoUploading}
+                  disabled={isSubmitting || isUploading}
+                  isLoading={isSubmitting || isUploading}
                   leftIcon={<FileCheck className="w-5 h-5" />}
                 >
                   Submit Field Verification

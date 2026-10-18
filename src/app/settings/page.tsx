@@ -19,17 +19,27 @@ import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Dialog } from '@/components/ui/Dialog';
 import { Badge } from '@/components/ui/Badge';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function SettingsPage() {
-  const [name, setName] = useState('Alex Rivera');
-  const [email, setEmail] = useState('a.rivera@pvg-ops.local');
-  const [facility, setFacility] = useState('Central Logistics Hub A');
-  const [offlineMode, setOfflineMode] = useState(true);
+  const { user, activeDataSource } = useAuth();
+  const [name, setName] = useState(user?.displayName || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [facility, setFacility] = useState(user?.facility || 'Primary Facility');
+  const [offlineMode, setOfflineMode] = useState(false);
   const [hapticFeedback, setHapticFeedback] = useState(true);
   const [urgentAlerts, setUrgentAlerts] = useState(true);
   const [dailyDigest, setDailyDigest] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (user) {
+      if (user.displayName) setName(user.displayName);
+      if (user.email) setEmail(user.email);
+      if (user.facility) setFacility(user.facility);
+    }
+  }, [user]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,10 +52,10 @@ export default function SettingsPage() {
       profile: { name, email, facility },
       safeguards: { offlineMode, hapticFeedback },
       notifications: { urgentAlerts, dailyDigest },
-      environment: 'demo-local',
+      dataSource: activeDataSource,
       exportedAt: new Date().toISOString(),
     };
-    alert(`Demo Configuration Exported:\n${JSON.stringify(config, null, 2)}`);
+    alert(`Configuration Exported:\n${JSON.stringify(config, null, 2)}`);
   };
 
   return (
@@ -56,23 +66,14 @@ export default function SettingsPage() {
           System & Device Settings
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-          Manage your field profile, hardware permission policies, and simulated storage preferences.
+          Manage your field profile, hardware permission policies, and cloud synchronization preferences.
         </p>
-      </div>
-
-      {/* Demo Notice */}
-      <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-start gap-3 text-xs text-blue-900">
-        <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-        <div className="space-y-0.5 leading-relaxed">
-          <strong>Client Memory Sandbox:</strong> All configuration toggles below alter client-side
-          state for testing. Never synced to remote databases or external storage.
-        </div>
       </div>
 
       {savedSuccess && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 text-sm animate-in fade-in">
           <Check className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>Preferences updated successfully in client memory.</span>
+          <span>Preferences updated successfully.</span>
         </div>
       )}
 
@@ -207,14 +208,16 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Database className="w-5 h-5 text-blue-600" />
-              Local Storage Diagnostics
+              Local Client Cache Diagnostics
             </CardTitle>
-            <CardDescription>Frontend-first in-memory ledger telemetry</CardDescription>
+            <CardDescription>Browser-level temporary storage and diagnostic state</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between text-xs p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-slate-600">Simulated Cache Utilization:</span>
-              <span className="font-mono font-semibold text-slate-900">2.1 MB (12 Records in Memory)</span>
+              <span className="text-slate-600">Active Storage Provider:</span>
+              <span className="font-mono font-semibold text-slate-900">
+                {activeDataSource === 'firebase' ? 'Cloud Firestore (Asia South-1)' : 'Client In-Memory'}
+              </span>
             </div>
             <div className="flex items-center gap-3">
               <Button
@@ -225,7 +228,7 @@ export default function SettingsPage() {
                 leftIcon={<Trash2 className="w-4 h-4" />}
                 onClick={() => setClearDialogOpen(true)}
               >
-                Clear Client Preview Cache
+                Clear Client Cache
               </Button>
               <Button
                 type="button"
@@ -252,8 +255,8 @@ export default function SettingsPage() {
       <Dialog
         isOpen={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
-        title="Reset Client Cache"
-        description="Are you sure you want to purge all local mock ledger drafts?"
+        title="Clear Client Cache"
+        description="Are you sure you want to purge local temporary browser cache?"
         footer={
           <>
             <Button variant="outline" size="sm" onClick={() => setClearDialogOpen(false)}>
@@ -263,8 +266,12 @@ export default function SettingsPage() {
               variant="danger"
               size="sm"
               onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.localStorage.removeItem('pvg_workspaces_demo_store_v4');
+                  window.localStorage.removeItem('pvg_mock_auth_session');
+                }
                 setClearDialogOpen(false);
-                alert('Local cache reset executed.');
+                alert('Local temporary cache reset.');
               }}
             >
               Confirm Purge
@@ -273,7 +280,7 @@ export default function SettingsPage() {
         }
       >
         <p className="text-sm text-slate-600">
-          This will revert all modified records back to the default demo fixtures.
+          This purges offline temporary drafts and cached views without modifying remote Firestore documents.
         </p>
       </Dialog>
     </div>

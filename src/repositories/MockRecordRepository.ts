@@ -252,6 +252,8 @@ export class MockRecordRepository implements IRecordRepository {
       } : undefined),
       verificationBadge: data.verificationBadge || (data.location ? `PVG Verified GPS (±${data.location.accuracyMeters.toFixed(1)}m)` : 'Pending GPS Lock'),
       doorstepCoordinates: data.doorstepCoordinates || data.location,
+      mobileNumber: data.mobileNumber,
+      locationLink: data.locationLink,
     };
 
     this.records.unshift(newRecord);
@@ -327,6 +329,8 @@ export class MockRecordRepository implements IRecordRepository {
       pricing: updatedPricing as any,
       location: updatedLocation as any,
       verificationBadge: updates.verificationBadge || current.verificationBadge,
+      mobileNumber: updates.mobileNumber !== undefined ? updates.mobileNumber : current.mobileNumber,
+      locationLink: updates.locationLink !== undefined ? updates.locationLink : current.locationLink,
       supervisorNote: updates.supervisorNote !== undefined ? updates.supervisorNote : current.supervisorNote,
       reviewerName: updates.reviewerName || current.reviewerName,
     };

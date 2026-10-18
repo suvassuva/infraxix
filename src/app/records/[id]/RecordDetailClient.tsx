@@ -74,6 +74,8 @@ export default function RecordDetailClient({ id }: { id: string }) {
   const [editLat, setEditLat] = useState('');
   const [editLng, setEditLng] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [editMobileNumber, setEditMobileNumber] = useState('');
+  const [editLocationLink, setEditLocationLink] = useState('');
   const [editSupervisorNote, setEditSupervisorNote] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
@@ -102,6 +104,8 @@ export default function RecordDetailClient({ id }: { id: string }) {
     setEditCategory(record.category || 'Meeting Room');
     setEditPriority(record.priority || 'medium');
     setEditNotes(record.notes || '');
+    setEditMobileNumber(record.mobileNumber || record.specs?.mobileNumber || '');
+    setEditLocationLink(record.locationLink || record.specs?.locationLink || '');
 
     // 11 Core Commercial Workspace Parameters
     setEditArea(record.specs?.areaSqFt ? String(record.specs.areaSqFt) : '');
@@ -157,6 +161,8 @@ export default function RecordDetailClient({ id }: { id: string }) {
         priority: editPriority,
         facility: editAddress.trim() || record.facility,
         category: editCategory,
+        mobileNumber: editMobileNumber.trim() || undefined,
+        locationLink: editLocationLink.trim() || undefined,
         specs: {
           areaSqFt: editArea ? parseInt(editArea, 10) : record.specs?.areaSqFt || 0,
           floorNumber: editFloorNumber ? parseInt(editFloorNumber, 10) : undefined,
@@ -169,6 +175,8 @@ export default function RecordDetailClient({ id }: { id: string }) {
           powerBackup: editPowerBackup.trim() || undefined,
           parkingSpaces: editParkingSpaces ? parseInt(editParkingSpaces, 10) : undefined,
           capacitySeats: editCapacitySeats ? parseInt(editCapacitySeats, 10) : undefined,
+          mobileNumber: editMobileNumber.trim() || undefined,
+          locationLink: editLocationLink.trim() || undefined,
         },
         pricing: {
           price: parsedRent,
@@ -654,7 +662,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
                       Cryptographic GPS proof locked directly at doorstep
                     </span>
                     <a
-                      href={`https://maps.google.com/?q=${record.location.latitude},${record.location.longitude}`}
+                      href={record.locationLink || `https://maps.google.com/?q=${record.location.latitude},${record.location.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors"
@@ -665,12 +673,27 @@ export default function RecordDetailClient({ id }: { id: string }) {
                   </div>
                 </>
               ) : (
-                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 space-y-1">
-                  <MapPin className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-50" />
-                  <p className="font-semibold text-slate-800 text-sm">No Geolocation Recorded</p>
-                  <p className="text-slate-500">
-                    This inspection was submitted without physical GPS coordinates (Missing Location Seed Scenario).
-                  </p>
+                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 space-y-3">
+                  <MapPin className="w-8 h-8 text-slate-400 mx-auto opacity-50" />
+                  <div>
+                    <p className="font-semibold text-slate-800 text-sm">No GPS Coordinates Recorded</p>
+                    <p className="text-slate-500">
+                      This inspection was submitted without physical device GPS lock.
+                    </p>
+                  </div>
+                  {record.locationLink && (
+                    <div className="pt-2">
+                      <a
+                        href={record.locationLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-white px-3.5 py-2 rounded-lg border border-blue-200 shadow-xs transition-colors"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        Open Provided Location Link
+                      </a>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -801,6 +824,12 @@ export default function RecordDetailClient({ id }: { id: string }) {
                 <span className="text-slate-500">Email:</span>
                 <span className="font-mono text-slate-600">{record.capturedBy.email}</span>
               </div>
+              {record.mobileNumber && (
+                <div className="flex justify-between py-1 border-t border-slate-100">
+                  <span className="text-slate-500">Mobile:</span>
+                  <span className="font-mono text-slate-800 font-medium">{record.mobileNumber}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -1074,6 +1103,13 @@ export default function RecordDetailClient({ id }: { id: string }) {
                 { value: 'urgent', label: 'Urgent' },
               ]}
             />
+            <Input
+              label="Mobile Number"
+              type="tel"
+              placeholder="e.g. +91 98765 43210"
+              value={editMobileNumber}
+              onChange={(e) => setEditMobileNumber(e.target.value)}
+            />
           </div>
 
           {/* Row 5: Location & Coordinates (Lat / Long) */}
@@ -1105,6 +1141,13 @@ export default function RecordDetailClient({ id }: { id: string }) {
                 onChange={(e) => setEditLng(e.target.value)}
               />
             </div>
+            <Input
+              label="Location Link (Map / GPS URL)"
+              type="url"
+              placeholder="e.g. https://maps.google.com/?q=..."
+              value={editLocationLink}
+              onChange={(e) => setEditLocationLink(e.target.value)}
+            />
           </div>
 
           {/* Field Notes & Audit Remark */}

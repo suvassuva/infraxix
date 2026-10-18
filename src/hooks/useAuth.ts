@@ -27,6 +27,7 @@ export interface UseAuthReturn {
   demoUsers: AuthUser[];
   login: (credentials: LoginCredentials) => Promise<AuthUser>;
   loginWithRole: (role: UserRole) => Promise<AuthUser>;
+  switchRole: (role: UserRole) => void;
   register: (params: RegisterParams) => Promise<AuthUser>;
   logout: () => Promise<void>;
   clearError: () => void;
@@ -137,6 +138,23 @@ export function useAuth(): UseAuthReturn {
     }
   }, []);
 
+  const switchRole = useCallback((role: UserRole) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(`infraxix_role_${prev.uid}`, role);
+          if (prev.email) {
+            localStorage.setItem(`infraxix_role_${prev.email.toLowerCase()}`, role);
+          }
+        } catch {
+          // ignore
+        }
+      }
+      return { ...prev, role };
+    });
+  }, []);
+
   const demoUsers: AuthUser[] = Object.values(DEMO_MOCK_USERS);
 
   return {
@@ -149,6 +167,7 @@ export function useAuth(): UseAuthReturn {
     demoUsers,
     login,
     loginWithRole,
+    switchRole,
     register,
     logout,
     clearError,

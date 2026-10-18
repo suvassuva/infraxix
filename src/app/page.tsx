@@ -5,17 +5,9 @@ import Link from 'next/link';
 import {
   Camera,
   Building2,
-  ShieldCheck,
   Search,
-  MapPin,
   ArrowRight,
-  Users,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  Filter,
   FileSpreadsheet,
-  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PropertyCard } from '@/components/ui/PropertyCard';
@@ -32,7 +24,7 @@ export default function HomePage() {
   const { records, isLoading } = useRecords({
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     searchTerm: searchQuery || undefined,
-    ownerUid: isOfficer ? (user?.uid || 'mock-usr-officer-001') : undefined,
+    ownerUid: isOfficer ? user?.uid : undefined,
     pageSize: 12,
   });
 
@@ -57,22 +49,15 @@ export default function HomePage() {
       <section className="bg-slate-900 text-white pt-4 sm:pt-8 pb-5 sm:pb-8 px-3.5 sm:px-6 lg:px-8 border-b border-slate-800 w-full min-w-0 overflow-hidden">
         <div className="max-w-7xl mx-auto space-y-3.5 sm:space-y-5">
           {/* Top Status Pill */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-[11px] sm:text-xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="truncate">
                 {isOfficer
-                  ? `Field Officer Station • ${user?.displayName || 'Officer Alex Rivera'}`
+                  ? `Field Officer Station • ${user?.displayName || user?.email || 'Officer'}`
                   : 'Workspace Capture & Verification Station'}
               </span>
             </div>
-
-            <Link
-              href="/capture"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              Start New Inspection <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
 
           {/* Heading */}
@@ -83,7 +68,7 @@ export default function HomePage() {
             <p className="mt-1 text-xs sm:text-sm text-slate-300 leading-relaxed">
               {isOfficer
                 ? 'Your central workstation for on-site workspace submissions, telemetry GPS verification, and hardware captures.'
-                : 'Browse and capture on-site verified meeting rooms, executive offices, dedicated desks, and coworking labs with hardware GPS telemetry.'}
+                : 'Browse and inspect on-site verified meeting rooms, executive offices, dedicated desks, and coworking labs.'}
             </p>
           </div>
 
@@ -156,63 +141,49 @@ export default function HomePage() {
           </div>
 
           {/* Quick Metrics Strip */}
-          <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
-            {isOfficer ? (
-              <>
-                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                  <span className="block text-base sm:text-xl font-bold text-white">
-                    {officerTotal}
-                  </span>
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">My Submissions</span>
-                </div>
-                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                  <span className="block text-base sm:text-xl font-bold text-emerald-400">
-                    {officerVerified}
-                  </span>
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Approved & Verified</span>
-                </div>
-                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                  <span className="block text-base sm:text-xl font-bold text-amber-400">
-                    {officerPending}
-                  </span>
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Pending Review</span>
-                </div>
-                <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                  <span className="block text-base sm:text-xl font-bold text-rose-400">
-                    {officerFlagged}
-                  </span>
-                  <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Flagged / Revisions</span>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-white">
-                    {stats.totalRecords.toLocaleString()}
-                  </span>
-                  <span className="text-slate-400 text-[11px]">Total Workspaces</span>
-                </div>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-emerald-400">
-                    {stats.approvedToday.toLocaleString()}
-                  </span>
-                  <span className="text-slate-400 text-[11px]">GPS Verified</span>
-                </div>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-amber-400">
-                    {stats.pendingReview.toLocaleString()}
-                  </span>
-                  <span className="text-slate-400 text-[11px]">Pending Review</span>
-                </div>
-                <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                  <span className="block text-lg sm:text-xl font-bold text-cyan-400">
-                    ±2.4m
-                  </span>
-                  <span className="text-slate-400 text-[11px]">Avg GPS Precision</span>
-                </div>
-              </>
-            )}
-          </div>
+          {isOfficer ? (
+            <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
+              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                <span className="block text-base sm:text-xl font-bold text-white">
+                  {officerTotal}
+                </span>
+                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">My Submissions</span>
+              </div>
+              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                <span className="block text-base sm:text-xl font-bold text-emerald-400">
+                  {officerVerified}
+                </span>
+                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Approved & Verified</span>
+              </div>
+              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                <span className="block text-base sm:text-xl font-bold text-amber-400">
+                  {officerPending}
+                </span>
+                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Pending Review</span>
+              </div>
+              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
+                <span className="block text-base sm:text-xl font-bold text-rose-400">
+                  {officerFlagged}
+                </span>
+                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Flagged / Revisions</span>
+              </div>
+            </div>
+          ) : (
+            <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 max-w-sm gap-2 sm:gap-3 text-xs">
+              <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
+                <span className="block text-lg sm:text-xl font-bold text-white">
+                  {stats.totalRecords.toLocaleString()}
+                </span>
+                <span className="text-slate-400 text-[11px]">Total Workspaces</span>
+              </div>
+              <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
+                <span className="block text-lg sm:text-xl font-bold text-amber-400">
+                  {stats.pendingReview.toLocaleString()}
+                </span>
+                <span className="text-slate-400 text-[11px]">Pending Review</span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

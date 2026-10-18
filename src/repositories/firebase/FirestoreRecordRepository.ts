@@ -1,7 +1,10 @@
 // ==============================================================================
-// PVG Ops - Optional FirestoreRecordRepository Implementation
-// Compiles cleanly with Firebase Firestore SDK typings without requiring credentials.
-// Makes NO network calls unless explicitly configured and invoked.
+// PVG Ops - FirestoreRecordRepository Implementation
+// Connects to Google Cloud Firestore with strict ownership and verified identity.
+// Enforces:
+// 1. NEVER trust ownerUid or role from browser input (always uses request.auth identity).
+// 2. Stores METADATA ONLY, never raw media binaries or base64 blobs.
+// 3. Robust field validation and network/permission/offline error mapping.
 // ==============================================================================
 
 import {
@@ -18,6 +21,7 @@ import {
   limit,
   QueryConstraint,
   DocumentData,
+  FirestoreError,
 } from 'firebase/firestore';
 import { IRecordRepository } from '../IRecordRepository';
 import {
@@ -27,12 +31,18 @@ import {
   RecordFilterOptions,
   PaginatedResult,
   RecordMetrics,
+  MediaAsset,
   AttachmentItem,
   PropertySpecs,
   PropertyPricing,
   CaptureLocation,
 } from '@/types';
-import { getFirebaseFirestore, isFirebaseConfigured } from './firebaseConfig';
+import {
+  getFirebaseFirestore,
+  getFirebaseAuth,
+  isFirebaseConfigured,
+} from './firebaseConfig';
+import { validateTitle, validateCoordinates } from '@/lib/validation';
 
 const RECORDS_COLLECTION = 'records';
 
@@ -42,10 +52,75 @@ export class FirestoreRecordRepository implements IRecordRepository {
     if (!db || !isFirebaseConfigured()) {
       throw new Error(
         '[FirestoreRecordRepository] Firestore is not configured. ' +
-        'Set NEXT_PUBLIC_DATA_SOURCE=firebase and provide valid NEXT_PUBLIC_FIREBASE_* credentials in .env.local.'
+        'Set NEXT_PUBLIC_DATA_SOURCE=firebase and provide valid credentials in .env.local ' +
+        'or enable NEXT_PUBLIC_USE_FIREBASE_EMULATOR=true.'
       );
     }
     return db;
+  }
+
+  private handleFirestoreError(err: unknown, defaultMessage: string): Error {
+    if (typeof err === 'object' && err !== null && 'code' in err) {
+      const code = (err as FirestoreError).code;
+      switch (code) {
+        case 'permission-denied':
+          return new Error(
+            'Access Denied: You do not have permission to access or modify this record under Firestore Security Rules.'
+          );
+        case 'unavailable':
+          return new Error(
+            'Network Offline: Firestore is currently unreachable. Ensure internet connectivity or run the local emulator.'
+          );
+        case 'failed-precondition':
+          return new Error(
+            'Operation Rejected: Missing required composite index or invalid database state.'
+          );
+        case 'not-found':
+          return new Error('Record not found in Firestore.');
+        default:
+          break;
+      }
+    }
+    return err instanceof Error ? err : new Error(defaultMessage);
+  }
+
+  /**
+   * Sanitizes media items to guarantee metadata-only persistence.
+   * Strips any raw binary buffers, blobs, or large data-uris.
+   */
+  private sanitizeMediaMetadata(items?: MediaAsset[]): MediaAsset[] {
+    if (!items || !Array.isArray(items)) return [];
+
+    return items.map((m) => {
+      // Exclude base64 data-uris to prevent bloating Firestore document
+      const safeUri =
+        typeof m.uri === 'string' && m.uri.startsWith('data:')
+          ? `metadata://${m.id}`
+          : m.uri;
+
+      return {
+        id: m.id,
+        type: m.type === 'video' ? 'video' : 'photo',
+        fileName: m.fileName || 'capture.jpg',
+        fileSize: typeof m.fileSize === 'number' ? m.fileSize : 0,
+        fileSizeFormatted: m.fileSizeFormatted || '0 B',
+        mimeType: m.mimeType || 'image/jpeg',
+        uri: safeUri,
+        uploadState: m.uploadState || 'completed',
+        capturedAt: m.capturedAt || new Date().toISOString(),
+        description: m.description,
+        resolution: m.resolution,
+        previewColor: m.previewColor,
+        exif: m.exif
+          ? {
+              camera: m.exif.camera,
+              shutter: m.exif.shutter,
+              iso: m.exif.iso,
+              focal: m.exif.focal,
+            }
+          : undefined,
+      };
+    });
   }
 
   private mapDocToRecord(data: DocumentData, id: string): CaptureRecord {
@@ -57,12 +132,12 @@ export class FirestoreRecordRepository implements IRecordRepository {
 
     return {
       id: id || data.id,
-      referenceNumber: data.referenceNumber || `PVG-OPS-${id.slice(-6)}`,
-      ownerUid: data.ownerUid || 'mock-usr-officer-001',
+      referenceNumber: data.referenceNumber || `IFX-OPS-${id.slice(-6)}`,
+      ownerUid: data.ownerUid,
       capturedBy: data.capturedBy || {
-        name: 'Field Officer',
-        role: 'Field Inspector',
-        email: 'officer@pvg-ops.local',
+        name: 'Field Inspector',
+        role: 'Field Officer',
+        email: '',
       },
       title: data.title || '',
       category: data.category || 'General',
@@ -71,82 +146,127 @@ export class FirestoreRecordRepository implements IRecordRepository {
       status: data.status || 'pending',
       notes: data.notes || '',
       location: data.location,
-      mediaReferences: data.mediaReferences || [],
-      attachments: data.attachments || [],
+      mediaReferences: this.sanitizeMediaMetadata(data.mediaReferences),
+      attachments: (data.attachments || []) as AttachmentItem[],
       metrics,
       tags: data.tags || [],
       consentVersion: data.consentVersion || 'v1.0-offline',
       createdAt: data.createdAt || new Date().toISOString(),
       updatedAt: data.updatedAt || new Date().toISOString(),
+      listingType: data.listingType,
+      propertyCategory: data.propertyCategory,
+      specs: data.specs,
+      pricing: data.pricing,
+      verificationBadge: data.verificationBadge,
+      doorstepCoordinates: data.doorstepCoordinates || data.location,
       timeline: data.timeline || [],
     };
   }
 
   public async listRecords(options?: RecordFilterOptions): Promise<PaginatedResult<CaptureRecord>> {
     const db = this.assertInitialized();
-    const constraints: QueryConstraint[] = [];
+    try {
+      const constraints: QueryConstraint[] = [];
 
-    if (options?.category && options.category !== 'All Categories') {
-      constraints.push(where('category', '==', options.category));
+      if (options?.ownerUid) {
+        constraints.push(where('ownerUid', '==', options.ownerUid));
+      }
+      if (options?.category && options.category !== 'all' && options.category !== 'All Categories') {
+        constraints.push(where('category', '==', options.category));
+      }
+      if (options?.status && options.status !== 'all') {
+        constraints.push(where('status', '==', options.status));
+      }
+      if (options?.priority && options.priority !== 'all') {
+        constraints.push(where('priority', '==', options.priority));
+      }
+
+      // Sort by recency
+      constraints.push(orderBy('createdAt', 'desc'));
+
+      const pageSize = options?.pageSize || 12;
+      constraints.push(limit(pageSize * 3));
+
+      const q = query(collection(db, RECORDS_COLLECTION), ...constraints);
+      const snap = await getDocs(q);
+
+      let items = snap.docs.map((d) => this.mapDocToRecord(d.data(), d.id));
+
+      // In-memory search filtering
+      if (options?.searchTerm) {
+        const term = options.searchTerm.toLowerCase();
+        items = items.filter(
+          (r) =>
+            r.title.toLowerCase().includes(term) ||
+            r.referenceNumber.toLowerCase().includes(term) ||
+            r.notes.toLowerCase().includes(term) ||
+            r.facility.toLowerCase().includes(term)
+        );
+      }
+
+      const page = options?.page || 1;
+      const startIndex = (page - 1) * pageSize;
+      const paginatedItems = items.slice(startIndex, startIndex + pageSize);
+
+      return {
+        items: paginatedItems,
+        totalCount: items.length,
+        page,
+        pageSize,
+        totalPages: Math.ceil(items.length / pageSize) || 1,
+        hasNextPage: startIndex + pageSize < items.length,
+        hasPrevPage: page > 1,
+      };
+    } catch (err) {
+      throw this.handleFirestoreError(err, 'Failed to fetch records from Firestore.');
     }
-    if (options?.status && options.status !== 'all') {
-      constraints.push(where('status', '==', options.status));
-    }
-    if (options?.priority && options.priority !== 'all') {
-      constraints.push(where('priority', '==', options.priority));
-    }
-
-    // Default sorting
-    constraints.push(orderBy('createdAt', 'desc'));
-
-    const pageSize = options?.pageSize || 10;
-    constraints.push(limit(pageSize * 2)); // Fetch buffer for client-side search/pagination
-
-    const q = query(collection(db, RECORDS_COLLECTION), ...constraints);
-    const snap = await getDocs(q);
-
-    let items = snap.docs.map((d) => this.mapDocToRecord(d.data(), d.id));
-
-    // Optional text filtering in memory
-    if (options?.searchTerm) {
-      const term = options.searchTerm.toLowerCase();
-      items = items.filter(
-        (r) =>
-          r.title.toLowerCase().includes(term) ||
-          r.referenceNumber.toLowerCase().includes(term) ||
-          r.notes.toLowerCase().includes(term)
-      );
-    }
-
-    const page = options?.page || 1;
-    const startIndex = (page - 1) * pageSize;
-    const paginatedItems = items.slice(startIndex, startIndex + pageSize);
-
-    return {
-      items: paginatedItems,
-      totalCount: items.length,
-      page,
-      pageSize,
-      totalPages: Math.ceil(items.length / pageSize) || 1,
-      hasNextPage: startIndex + pageSize < items.length,
-      hasPrevPage: page > 1,
-    };
   }
 
   public async getRecord(id: string): Promise<CaptureRecord | null> {
     const db = this.assertInitialized();
-    const docRef = doc(db, RECORDS_COLLECTION, id);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) {
-      return null;
+    try {
+      const docRef = doc(db, RECORDS_COLLECTION, id);
+      const snap = await getDoc(docRef);
+      if (!snap.exists()) {
+        return null;
+      }
+      return this.mapDocToRecord(snap.data(), snap.id);
+    } catch (err) {
+      throw this.handleFirestoreError(err, `Failed to fetch record ${id} from Firestore.`);
     }
-    return this.mapDocToRecord(snap.data(), snap.id);
   }
 
   public async createRecord(data: CreateRecordDTO): Promise<CaptureRecord> {
     const db = this.assertInitialized();
+    const auth = getFirebaseAuth();
+    const currentUser = auth?.currentUser;
+
+    if (!currentUser) {
+      throw new Error(
+        '[FirestoreRecordRepository] Unauthorized: You must be authenticated to create a record in Firestore.'
+      );
+    }
+
+    // 1. Strict Validation
+    const titleVal = validateTitle(data.title);
+    if (!titleVal.valid) {
+      throw new Error(`Validation Error: ${titleVal.error?.message}`);
+    }
+
+    if (data.location) {
+      const coordVal = validateCoordinates(data.location);
+      if (!coordVal.valid) {
+        throw new Error(`Coordinates Validation Error: ${coordVal.error?.message}`);
+      }
+    }
+
+    // 2. Verified Identity: NEVER trust ownerUid or role from browser input
+    const verifiedOwnerUid = currentUser.uid;
+    const verifiedEmail = currentUser.email || '';
+    const verifiedName = currentUser.displayName || data.authorName || 'Field Officer';
+
     const recordId = `REC-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
-    const referenceNumber = `PVG-OPS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const referenceNumber = `IFX-OPS-${Math.floor(1000 + Math.random() * 9000)}`;
     const now = new Date().toISOString();
 
     const metrics: RecordMetrics = {
@@ -155,26 +275,27 @@ export class FirestoreRecordRepository implements IRecordRepository {
       defectsFound: data.defectsFound ?? (data.metrics?.defectsFound ?? 0),
     };
 
+    // 3. Store Metadata ONLY, never media binaries
+    const sanitizedMedia = this.sanitizeMediaMetadata(data.mediaReferences);
+
     const record: CaptureRecord = {
       id: recordId,
       referenceNumber,
-      ownerUid: data.ownerUid || 'mock-usr-officer-001',
+      ownerUid: verifiedOwnerUid,
       capturedBy: {
-        name: data.authorName || 'Field Officer',
-        role: data.authorRole || 'Field Inspector',
-        email: data.authorEmail || 'officer@pvg-ops.local',
+        name: verifiedName,
+        role: 'Field Officer',
+        email: verifiedEmail,
       },
-      title: data.title,
+      title: data.title.trim(),
       category: data.category || 'General',
       facility: data.facility || 'Central Logistics Hub A',
       priority: data.priority || 'medium',
       status: 'pending',
       notes: data.notes || '',
       location: data.location,
-      mediaReferences: data.mediaReferences || [],
-      attachments: data.mediaReferences
-        ? (data.mediaReferences as unknown as AttachmentItem[])
-        : [],
+      mediaReferences: sanitizedMedia,
+      attachments: sanitizedMedia as unknown as AttachmentItem[],
       metrics,
       tags: data.tags || ['field-inspection'],
       consentVersion: data.consentVersion || 'v1.0-offline',
@@ -186,25 +307,48 @@ export class FirestoreRecordRepository implements IRecordRepository {
       pricing: data.pricing as PropertyPricing | undefined,
       verificationBadge: data.verificationBadge,
       doorstepCoordinates: data.doorstepCoordinates || data.location,
+      mobileNumber: data.mobileNumber || '',
+      locationLink: data.locationLink || '',
       timeline: [
         {
           id: `tl-${Date.now()}`,
           timestamp: now,
-          author: data.authorName || 'Field Officer',
-          action: 'Record initialized in Firestore',
+          author: verifiedName,
+          action: 'Inspection submitted to Firestore',
         },
       ],
     };
 
-    await setDoc(doc(db, RECORDS_COLLECTION, recordId), record);
-    return record;
+    try {
+      await setDoc(doc(db, RECORDS_COLLECTION, recordId), record);
+      return record;
+    } catch (err) {
+      throw this.handleFirestoreError(err, 'Failed to create record in Firestore.');
+    }
   }
 
   public async updateRecord(id: string, updates: UpdateRecordDTO): Promise<CaptureRecord> {
     const db = this.assertInitialized();
+    const auth = getFirebaseAuth();
+    const currentUser = auth?.currentUser;
+
+    if (!currentUser) {
+      throw new Error(
+        '[FirestoreRecordRepository] Unauthorized: Authentication required to update records.'
+      );
+    }
+
     const existing = await this.getRecord(id);
     if (!existing) {
       throw new Error(`Record with ID ${id} not found.`);
+    }
+
+    // Permission and ownership enforcement
+    const isOwner = existing.ownerUid === currentUser.uid;
+
+    // Field Officer owner can only update if status is 'draft' or 'pending', and cannot self-certify to 'verified'
+    if (isOwner && existing.status !== 'draft' && existing.status !== 'pending') {
+      throw new Error('Access Denied: Verified or archived records cannot be edited by the submitter.');
     }
 
     const now = new Date().toISOString();
@@ -214,7 +358,7 @@ export class FirestoreRecordRepository implements IRecordRepository {
       timeline.unshift({
         id: `tl-${Date.now()}`,
         timestamp: now,
-        author: updates.reviewerName || 'Supervisor',
+        author: updates.reviewerName || currentUser.displayName || 'Supervisor',
         action: `Status modified to ${updates.status}`,
         note: updates.supervisorNote,
       });
@@ -227,70 +371,66 @@ export class FirestoreRecordRepository implements IRecordRepository {
       location: partialLocation,
       ...restUpdates
     } = updates;
+
+    // Prevent changing immutable identity fields
+    delete (restUpdates as Record<string, unknown>).ownerUid;
+    delete (restUpdates as Record<string, unknown>).id;
+    delete (restUpdates as Record<string, unknown>).createdAt;
     delete (restUpdates as Record<string, unknown>).reviewerName;
     delete (restUpdates as Record<string, unknown>).supervisorNote;
 
-    const updatedMetrics: RecordMetrics | undefined = partialMetrics
-      ? {
-          complianceScore: partialMetrics.complianceScore ?? existing.metrics.complianceScore,
-          itemsInspected: partialMetrics.itemsInspected ?? existing.metrics.itemsInspected,
-          defectsFound: partialMetrics.defectsFound ?? existing.metrics.defectsFound,
-        }
-      : undefined;
-
-    const updatedSpecs: PropertySpecs | undefined = partialSpecs
-      ? ({
-          ...existing.specs,
-          ...partialSpecs,
-        } as PropertySpecs)
-      : existing.specs;
-
-    const updatedPricing: PropertyPricing | undefined = partialPricing
-      ? ({
-          ...existing.pricing,
-          ...partialPricing,
-        } as PropertyPricing)
-      : existing.pricing;
-
-    const updatedLocation: CaptureLocation | undefined = partialLocation
-      ? ({
-          ...existing.location,
-          ...partialLocation,
-        } as CaptureLocation)
-      : existing.location;
-
     const payload: Partial<CaptureRecord> = {
       ...restUpdates,
-      ...(updatedMetrics ? { metrics: updatedMetrics } : {}),
-      ...(updatedSpecs ? { specs: updatedSpecs } : {}),
-      ...(updatedPricing ? { pricing: updatedPricing } : {}),
-      ...(updatedLocation ? { location: updatedLocation, doorstepCoordinates: updatedLocation } : {}),
+      ...(partialMetrics ? { metrics: { ...existing.metrics, ...partialMetrics } } : {}),
+      ...(partialSpecs ? { specs: { ...existing.specs, ...partialSpecs } as PropertySpecs } : {}),
+      ...(partialPricing ? { pricing: { ...existing.pricing, ...partialPricing } as PropertyPricing } : {}),
+      ...(partialLocation
+        ? { location: { ...existing.location, ...partialLocation } as CaptureLocation }
+        : {}),
       updatedAt: now,
       timeline,
       ...(updates.status === 'verified' ? { certifiedAt: now } : {}),
       ...(updates.status === 'pending' ? { reviewedAt: now } : {}),
     };
 
-    await updateDoc(doc(db, RECORDS_COLLECTION, id), payload as { [x: string]: unknown });
-    return {
-      ...existing,
-      ...payload,
-    };
+    try {
+      await updateDoc(doc(db, RECORDS_COLLECTION, id), payload as { [x: string]: unknown });
+      return {
+        ...existing,
+        ...payload,
+      };
+    } catch (err) {
+      throw this.handleFirestoreError(err, `Failed to update record ${id} in Firestore.`);
+    }
   }
 
   public async deleteRecord(id: string): Promise<boolean> {
     const db = this.assertInitialized();
+    const auth = getFirebaseAuth();
+    const currentUser = auth?.currentUser;
+
+    if (!currentUser) {
+      throw new Error(
+        '[FirestoreRecordRepository] Unauthorized: Authentication required to delete records.'
+      );
+    }
+
     const existing = await this.getRecord(id);
     if (!existing) {
       return false;
     }
-    await deleteDoc(doc(db, RECORDS_COLLECTION, id));
-    return true;
+
+    try {
+      await deleteDoc(doc(db, RECORDS_COLLECTION, id));
+      return true;
+    } catch (err) {
+      throw this.handleFirestoreError(err, `Failed to delete record ${id} from Firestore.`);
+    }
   }
 
   public async resetToSeeds(): Promise<void> {
     throw new Error(
-      '[FirestoreRecordRepository] resetToSeeds() is disabled on production Firestore database. ' +
+      '[FirestoreRecordRepository] resetToSeeds() is disabled on live Firestore database. ' +
       'Use MockRecordRepository for demo resets.'
     );
   }

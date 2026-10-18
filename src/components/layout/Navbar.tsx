@@ -20,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 export function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, switchRole } = useAuth();
 
   const isOfficer = user?.role === 'officer';
   const isAdmin = user?.role === 'admin';
@@ -94,9 +94,15 @@ export function Navbar() {
                   <span className="text-xs font-semibold text-slate-800 leading-none">
                     {user.displayName || 'Inspector'}
                   </span>
-                  <span className="text-[10px] text-slate-500 uppercase font-medium leading-tight">
-                    {user.role}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => switchRole(user.role === 'admin' ? 'officer' : 'admin')}
+                    title="Click to toggle between Admin and Officer roles"
+                    className="text-[10px] text-blue-600 hover:text-blue-800 uppercase font-semibold leading-tight hover:underline cursor-pointer flex items-center gap-1 mt-0.5"
+                  >
+                    <span>{user.role}</span>
+                    <span className="text-[9px] text-slate-400">⇄</span>
+                  </button>
                 </div>
                 <button
                   type="button"
@@ -166,7 +172,15 @@ export function Navbar() {
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900">{user.displayName || 'Inspector'}</div>
-                    <div className="text-[10px] text-slate-500 uppercase">{user.role}</div>
+                    <button
+                      type="button"
+                      onClick={() => switchRole(user.role === 'admin' ? 'officer' : 'admin')}
+                      title="Click to toggle between Admin and Officer roles"
+                      className="text-[10px] text-blue-600 hover:text-blue-800 uppercase font-semibold hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <span>{user.role}</span>
+                      <span className="text-[9px] text-slate-400">⇄</span>
+                    </button>
                   </div>
                 </div>
                 <button

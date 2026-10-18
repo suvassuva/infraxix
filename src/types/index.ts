@@ -43,6 +43,8 @@ export interface WorkspaceSpecs {
   parkingSpaces?: number; // Parking spaces/slots
   capacitySeats?: number;
   amenities?: string[];
+  mobileNumber?: string;
+  locationLink?: string;
   // Optional backward-compatibility fields
   bedrooms?: number;
   bathrooms?: number;
@@ -144,6 +146,7 @@ export interface AttachmentItem {
     iso: string;
     focal: string;
   };
+  rawBlob?: Blob | File;
 }
 
 export interface RecordMetrics {
@@ -194,6 +197,8 @@ export interface CaptureRecord {
   pricing?: PropertyPricing;
   verificationBadge?: string;
   doorstepCoordinates?: CaptureLocation;
+  mobileNumber?: string;
+  locationLink?: string;
   supervisorNote?: string;
   reviewerName?: string;
 }
@@ -290,6 +295,8 @@ export interface CreateRecordDTO {
   pricing?: Partial<PropertyPricing>;
   verificationBadge?: string;
   doorstepCoordinates?: CaptureLocation;
+  mobileNumber?: string;
+  locationLink?: string;
 }
 
 export interface UpdateRecordDTO {
@@ -310,6 +317,8 @@ export interface UpdateRecordDTO {
   pricing?: Partial<PropertyPricing>;
   verificationBadge?: string;
   location?: Partial<CaptureLocation>;
+  mobileNumber?: string;
+  locationLink?: string;
 }
 
 export interface SystemAuditLog {

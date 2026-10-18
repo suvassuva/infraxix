@@ -40,3 +40,10 @@ html, body {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Hide default browser eye icons (Microsoft Edge / Internet Explorer) so only custom toggle is shown */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+}
+

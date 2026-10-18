@@ -90,12 +90,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : null;
+    }
+
     function getUserRole() {
-      return request.auth.token.role != null ? request.auth.token.role : 'officer';
+      return request.auth.token.role != null
+        ? request.auth.token.role
+        : (getUserData() != null && getUserData().role != null ? getUserData().role : 'officer');
     }
 
     function isOfficer() {
-      return isAuthenticated() && (getUserRole() == 'officer' || getUserRole() == 'supervisor' || getUserRole() == 'admin');
+      return isAuthenticated();
     }
 
     function isSupervisor() {
@@ -106,6 +114,44 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() == 'admin';
     }
 
+    function isOwner(record) {
+      return isAuthenticated() && record.ownerUid == request.auth.uid;
+    }
+
+    function hasValidMetadataOnly() {
+      // Strictly prevent media binary payloads in Firestore document
+      return !('binary' in request.resource.data)
+          && !('fileData' in request.resource.data)
+          && !('blob' in request.resource.data)
+          && !('buffer' in request.resource.data);
+    }
+
+    function isValidCoordinates(loc) {
+      return loc == null || (
+        loc.latitude is number &&
+        loc.latitude >= -90.0 &&
+        loc.latitude <= 90.0 &&
+        loc.longitude is number &&
+        loc.longitude >= -180.0 &&
+        loc.longitude <= 180.0 &&
+        (loc.accuracy == null || (loc.accuracy is number && loc.accuracy >= 0))
+      );
+    }
+
+    // User Profiles Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // On registration, users can create their doc but cannot self-assign admin/supervisor
+      allow create: if isAuthenticated() && request.auth.uid == userId
+        && (!('role' in request.resource.data) || request.resource.data.role == 'officer');
+      // Only admins can change a user's role; users can update their other profile fields
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+      );
+      allow delete: if isAdmin();
+    }
+
     // Records Collection
     match /records/{recordId} {
       // Any authenticated personnel can read records
@@ -113,26 +159,38 @@ service cloud.firestore {
 
       // Field officers can create new inspection records
       allow create: if isOfficer()
+        // NEVER trust ownerUid from browser input: must strictly match verified auth UID
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.title is string
         && request.resource.data.title.size() >= 3
         && request.resource.data.title.size() <= 120
+        && request.resource.data.category is string
+        && request.resource.data.category.size() > 0
         && request.resource.data.status in ['draft', 'pending']
-        && (request.resource.data.location == null || (
-             request.resource.data.location.latitude >= -90.0 &&
-             request.resource.data.location.latitude <= 90.0 &&
-             request.resource.data.location.longitude >= -180.0 &&
-             request.resource.data.location.longitude <= 180.0
-           ));
+        && isValidCoordinates(request.resource.data.location)
+        && hasValidMetadataOnly();
 
-      // Supervisors & Admins can update status (verify, flag, reject)
-      // Officers can only update their own draft records
-      allow update: if isSupervisor() || (
-        isOfficer() &&
-        resource.data.capturedBy.email == request.auth.token.email &&
-        resource.data.status in ['draft', 'pending']
+      // Updates:
+      // - ownerUid is strictly immutable
+      // - Supervisors and Admins can update status (verify, flag, reject), notes, certification
+      // - Officers can only update their own records when in draft or pending status
+      allow update: if isAuthenticated()
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && hasValidMetadataOnly()
+        && (
+          isSupervisor() ||
+          (
+            isOwner(resource.data)
+            && resource.data.status in ['draft', 'pending']
+            && request.resource.data.status in ['draft', 'pending']
+          )
+        );
+
+      // Deletions: Admins or Owner (only if draft/pending)
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        (isOwner(resource.data) && resource.data.status in ['draft', 'pending'])
       );
-
-      // Only Admins can permanently delete records
-      allow delete: if isAdmin();
     }
 
     // Audit Logs Collection (Immutable write-only ledger)

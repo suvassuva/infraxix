@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Camera, LogOut, User } from 'lucide-react';
+import { Building2, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 export function BottomNav() {
@@ -17,15 +17,13 @@ export function BottomNav() {
     return pathname.startsWith(href);
   };
 
-  const isCaptureActive = pathname.startsWith('/capture');
-
   return (
     <nav
       aria-label="Mobile Navigation"
       className="fixed bottom-0 inset-x-0 z-50 md:hidden bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-6px_24px_rgba(15,23,42,0.08)] pb-[calc(env(safe-area-inset-bottom,0px)+0.25rem)]"
     >
-      <div className="relative max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-        {/* Item 1: Workspaces */}
+      <div className="relative max-w-md mx-auto px-6 h-16 flex items-center justify-around">
+        {/* Item 1: Workspaces / My Hub */}
         <Link
           href="/"
           className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
@@ -40,25 +38,7 @@ export function BottomNav() {
           </span>
         </Link>
 
-        {/* Center Item: Floating Camera Action Button (FAB) */}
-        <div className="flex-1 flex flex-col items-center justify-center -mt-5">
-          <Link
-            href="/capture"
-            className={`group relative flex flex-col items-center justify-center w-13 h-13 rounded-full shadow-lg transition-all duration-200 active:scale-95 border-2 border-white ${
-              isCaptureActive
-                ? 'bg-blue-700 text-white ring-4 ring-blue-500/20'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-            aria-label="Capture Workspace"
-          >
-            <Camera className="w-6 h-6" />
-          </Link>
-          <span className="text-[10px] mt-1 font-semibold text-blue-600 tracking-tight leading-none">
-            Capture
-          </span>
-        </div>
-
-        {/* Item 3: Admin Hub (if admin) */}
+        {/* Item 2: Admin Hub (if admin) */}
         {isAdmin && (
           <Link
             href="/admin"
@@ -73,7 +53,7 @@ export function BottomNav() {
           </Link>
         )}
 
-        {/* Item 4: Settings or Sign Out */}
+        {/* Item 3: Sign Out / Sign In */}
         {isAuthenticated ? (
           <button
             type="button"

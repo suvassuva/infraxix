@@ -52,6 +52,7 @@ export interface UseMediaCaptureReturn {
   discardStagedMedia: () => void;
   removeConfirmedMedia: () => void;
   stageFileMedia: (file: File) => void;
+  attachDirectFile: (file: File) => AttachmentItem;
 }
 
 export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseMediaCaptureReturn {
@@ -436,6 +437,7 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
         iso: 'ISO-Auto',
         focal: facingMode === 'environment' ? 'Wide Angle' : 'Standard',
       },
+      rawBlob: stagedMedia.blob,
     };
 
     setConfirmedMedia(attachment);
@@ -493,6 +495,35 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
     [registerObjectUrl]
   );
 
+  /**
+   * Immediately attaches and confirms a captured media file from native camera.
+   */
+  const attachDirectFile = useCallback(
+    (file: File): AttachmentItem => {
+      const isVideo = file.type.startsWith('video');
+      const objectUrl = registerObjectUrl(URL.createObjectURL(file));
+
+      const attachment: AttachmentItem = {
+        id: `direct-${isVideo ? 'video' : 'photo'}-${Date.now()}`,
+        name: file.name || (isVideo ? `Video_${Date.now()}.mp4` : `Photo_${Date.now()}.jpg`),
+        size: mediaCaptureService.formatFileSize(file.size),
+        type: file.type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+        mediaType: isVideo ? 'video' : 'image',
+        uri: objectUrl,
+        rawBlob: file,
+        description: `Direct native ${isVideo ? 'video' : 'photo'} camera capture.`,
+        resolution: isVideo ? 'High Definition Video' : 'High Resolution Photo',
+        previewColor: isVideo ? 'from-slate-900 to-slate-950' : 'from-blue-700 to-indigo-950',
+      };
+
+      setConfirmedMedia(attachment);
+      setStagedMedia(null);
+      setStatus('idle');
+      return attachment;
+    },
+    [registerObjectUrl]
+  );
+
   // Clean up all tracks and object URLs on unmount
   useEffect(() => {
     const urlsToRevoke = objectUrlsRef.current;
@@ -540,5 +571,6 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
     discardStagedMedia,
     removeConfirmedMedia,
     stageFileMedia,
+    attachDirectFile,
   };
 }

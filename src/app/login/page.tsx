@@ -1,12 +1,12 @@
 'use client';
 
 // ==============================================================================
-// PVG Ops - Login & Authentication Station
+// Infraxix - Authentication Station
 // Connected to typed IAuthRepository via useAuth hook
-// Displays prominent Demo Safeguards to prevent confusion with production
+// Supports Live Firebase Authentication and Mock fallback
 // ==============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -19,35 +19,48 @@ import {
   UserPlus,
   CheckCircle2,
   AlertTriangle,
-  Database,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
-import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/types';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, loginWithRole, register, isMock, activeDataSource } = useAuth();
+  const { user, isLoading: authLoading, login, register, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('officer@pvg-ops.local');
-  const [loginPassword, setLoginPassword] = useState('demo-password-2026');
+  const getDestination = (role?: string) => {
+    if (typeof window !== 'undefined') {
+      const redirect = new URLSearchParams(window.location.search).get('redirect');
+      if (redirect) return redirect;
+    }
+    return role === 'officer' ? '/' : '/dashboard';
+  };
+
+  // If already authenticated, forward directly to intended destination
+  useEffect(() => {
+    if (!authLoading && user) {
+      const targetPath = getDestination(user.role);
+      router.replace(targetPath);
+    }
+  }, [user, authLoading, router]);
+
+  // Login form state - clean and empty (no hardcoded mock credentials)
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [selectedRole, setSelectedRole] = useState<UserRole>('officer');
 
-  // Register form state
+  // Register form state - clean and empty
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regFacility, setRegFacility] = useState('Central Logistics Hub A');
   const [regRole, setRegRole] = useState<UserRole>('officer');
   const [regPassword, setRegPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regAgreed, setRegAgreed] = useState(false);
 
   // Submission state
@@ -55,67 +68,10 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const handleRoleSelect = (role: UserRole) => {
-    setSelectedRole(role);
-    if (role === 'officer') {
-      setLoginEmail('officer@pvg-ops.local');
-    } else {
-      setLoginEmail('admin.root@pvg-ops.local');
-    }
-  };
-
-  const handleQuickRoleLogin = async (role: UserRole) => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
-    try {
-      const user = await loginWithRole(role);
-      setStatusMessage(
-        `Signed in as ${user.displayName} (${user.role.toUpperCase()}) via MockAuthRepository.`
-      );
-      const targetPath = user.role === 'officer' ? '/' : '/dashboard';
-      setTimeout(() => {
-        router.push(targetPath);
-      }, 600);
-    } catch (err: unknown) {
-      const e = err as Error;
-      setErrorMessage(e.message || 'Failed to authenticate with mock role.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
-
-    try {
-      const user = await login({
-        email: loginEmail,
-        password: loginPassword,
-        rememberMe,
-      });
-      setStatusMessage(
-        `Authorized as ${user.displayName}! Redirecting...`
-      );
-      const targetPath = user.role === 'officer' ? '/' : '/dashboard';
-      setTimeout(() => {
-        router.push(targetPath);
-      }, 600);
-    } catch (err: unknown) {
-      const e = err as Error;
-      setErrorMessage(e.message || 'Authentication rejected by auth repository.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!regAgreed) {
-      setErrorMessage('Please acknowledge the simulated demo environment checkbox.');
+    if (!loginEmail.trim() || !loginPassword) {
+      setErrorMessage('Please enter your email and password.');
       return;
     }
     setIsLoading(true);
@@ -123,32 +79,112 @@ export default function LoginPage() {
     setStatusMessage(null);
 
     try {
-      const user = await register({
-        email: regEmail,
-        password: regPassword,
-        displayName: regName,
-        role: regRole,
-        facility: regFacility,
+      const loggedUser = await login({
+        email: loginEmail.trim(),
+        password: loginPassword,
+        rememberMe,
       });
       setStatusMessage(
-        `Demo profile created for ${user.displayName}! Session initiated.`
+        `Authorized as ${loggedUser.displayName || loggedUser.email}! Redirecting...`
       );
-      const targetPath = user.role === 'officer' ? '/' : '/dashboard';
+      const targetPath = getDestination(loggedUser.role);
       setTimeout(() => {
         router.push(targetPath);
-      }, 700);
+      }, 600);
     } catch (err: unknown) {
       const e = err as Error;
-      setErrorMessage(e.message || 'Registration failed in auth repository.');
+      setErrorMessage(e.message || 'Invalid email or password.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regEmail.trim() || !regPassword) {
+      setErrorMessage('Please provide an email and password to create an account.');
+      return;
+    }
+    if (regPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+    if (!regAgreed) {
+      setErrorMessage('Please accept the platform compliance terms to continue.');
+      return;
+    }
+    setIsLoading(true);
+    setErrorMessage(null);
+    setStatusMessage(null);
+
+    try {
+      const newUser = await register({
+        email: regEmail.trim(),
+        password: regPassword,
+        displayName: regName.trim() || (regRole === 'admin' ? 'Administrator' : 'Field Officer'),
+        role: regRole,
+      });
+      setStatusMessage(
+        `Account created successfully for ${newUser.displayName || newUser.email}! Signing in...`
+      );
+      const targetPath = getDestination(newUser.role);
+      setTimeout(() => {
+        router.push(targetPath);
+      }, 700);
+    } catch (err: unknown) {
+      const e = err as Error;
+      setErrorMessage(e.message || 'Registration failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (user) {
+    const targetPath = getDestination(user.role);
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center py-6 sm:py-10 px-3.5 sm:px-6 lg:px-8 bg-slate-50 w-full min-w-0 overflow-hidden">
+        <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 text-center shadow-xs space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
+            <ShieldCheck className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">Already Signed In</h2>
+            <p className="text-xs text-slate-500 mt-1">
+              Active account: <strong className="text-slate-800">{user.displayName || user.email}</strong> ({user.role})
+            </p>
+          </div>
+          <p className="text-xs text-blue-700 bg-blue-50 py-2.5 px-3 rounded-lg border border-blue-200 font-medium">
+            Redirecting to your workspace...
+          </p>
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => router.push(targetPath)}
+            >
+              Continue
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto text-slate-600 hover:text-rose-600"
+              onClick={() => logout()}
+            >
+              Sign Out / Switch Account
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-6 sm:py-10 px-3.5 sm:px-6 lg:px-8 bg-slate-50 w-full min-w-0 overflow-hidden">
       <div className="w-full max-w-md space-y-5 sm:space-y-6">
-        {/* Header with Mock Mode Watermark */}
+        {/* Header */}
         <div className="text-center">
           <div className="inline-flex w-12 h-12 rounded-2xl bg-blue-600 items-center justify-center text-white shadow-md shadow-blue-500/20 mb-3">
             <ShieldCheck className="w-7 h-7" />
@@ -159,28 +195,9 @@ export default function LoginPage() {
           <p className="text-sm text-slate-500 mt-1">
             Standardized repository contract • Zero unauthenticated cloud transmission
           </p>
-          <div className="mt-3 flex items-center justify-center gap-2">
-            <Badge variant={isMock ? 'warning' : 'success'} className="px-2.5 py-0.5 text-xs font-semibold">
-              <Database className="w-3.5 h-3.5 mr-1 inline" />
-              Active Auth Source: {activeDataSource.toUpperCase()} {isMock ? '(MOCK MODE)' : '(FIREBASE)'}
-            </Badge>
-          </div>
         </div>
 
-        {/* Demo Mode Safeguard Notice */}
-        {isMock && (
-          <div className="p-3.5 bg-amber-50/90 border border-amber-300 rounded-xl flex items-start gap-3 shadow-xs">
-            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-            <div className="text-xs text-amber-900 leading-relaxed">
-              <strong className="font-bold">DEMO ENVIRONMENT NOTICE:</strong> This application is currently operating
-              under <span className="underline decoration-amber-400 font-semibold">MockAuthRepository</span>.
-              Accounts, passwords, and sessions are simulated locally and are{' '}
-              <strong>never transmitted to Firebase Authentication</strong>. Do not use actual production credentials.
-            </div>
-          </div>
-        )}
-
-        {/* Tab Switcher: Login vs Register */}
+        {/* Tab Switcher: Sign In vs Create Account */}
         <div className="flex p-1 bg-slate-200/80 rounded-xl border border-slate-300">
           <button
             type="button"
@@ -195,7 +212,7 @@ export default function LoginPage() {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Sign In (Demo Presets)
+            Sign In
           </button>
           <button
             type="button"
@@ -210,7 +227,7 @@ export default function LoginPage() {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Create Demo Account
+            Create Account
           </button>
         </div>
 
@@ -232,131 +249,100 @@ export default function LoginPage() {
 
         {/* TAB 1: LOGIN */}
         {activeTab === 'login' ? (
-          <div className="space-y-4">
-            {/* Demo Fast Preset Switcher */}
-            {isMock && (
-              <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs">
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-                    Fast Demo Role Fill
-                  </p>
-                  <span className="text-[10px] text-slate-400">MockAuthRepository</span>
+          <Card>
+            <CardContent className="pt-6">
+              <form onSubmit={handleLoginSubmit} className="space-y-4">
+                <Input
+                  label="Official Work Email"
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="name@company.com"
+                  leftIcon={<Mail className="w-4 h-4" />}
+                />
+
+                <div className="relative">
+                  <Input
+                    label="Security Password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    leftIcon={<Key className="w-4 h-4" />}
+                    rightIcon={
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowPassword((prev) => !prev);
+                        }}
+                        className="text-slate-400 hover:text-slate-700 p-1.5 -mr-1.5 rounded-md focus:outline-none cursor-pointer transition-colors"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
+                  />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <Checkbox
+                    label="Remember workstation"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
                   <button
                     type="button"
-                    onClick={() => handleRoleSelect('officer')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                      selectedRole === 'officer'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                    }`}
+                    onClick={() => alert('Please contact your administrator to reset credentials.')}
+                    className="text-blue-600 hover:underline font-medium"
                   >
-                    Field Officer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRoleSelect('admin')}
-                    className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
-                      selectedRole === 'admin'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
-                    }`}
-                  >
-                    Admin
+                    Forgot password?
                   </button>
                 </div>
-                <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-500">Instant login as selected role:</span>
+
+                <div className="pt-2">
                   <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="text-xs text-blue-600 font-semibold hover:bg-blue-50 h-7 px-2"
-                    onClick={() => handleQuickRoleLogin(selectedRole)}
+                    type="submit"
+                    size="lg"
+                    className="w-full"
                     isLoading={isLoading}
+                    leftIcon={<UserCheck className="w-4 h-4" />}
                   >
-                    1-Click Sign In →
+                    Authorize & Access Workspace
                   </Button>
                 </div>
-              </div>
-            )}
 
-            {/* Form Card */}
-            <Card>
-              <CardContent className="pt-6">
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
-                  <Input
-                    label="Official Work Email"
-                    type="email"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="officer@pvg-ops.local"
-                    leftIcon={<Mail className="w-4 h-4" />}
-                  />
-
-                  <div className="relative">
-                    <Input
-                      label="Security Password"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      leftIcon={<Key className="w-4 h-4" />}
-                      rightIcon={
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="text-slate-400 hover:text-slate-600 focus:outline-none"
-                          aria-label="Toggle password visibility"
-                        >
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      }
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <Checkbox
-                      label="Remember workstation"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                    />
+                <div className="text-center pt-2">
+                  <p className="text-xs text-slate-500">
+                    First time accessing Infraxix?{' '}
                     <button
                       type="button"
-                      onClick={() => alert('Demo notice: In Mock Mode, password recovery resets session state to seed defaults.')}
-                      className="text-blue-600 hover:underline font-medium"
+                      onClick={() => {
+                        setActiveTab('register');
+                        setErrorMessage(null);
+                        setStatusMessage(null);
+                      }}
+                      className="text-blue-600 font-semibold hover:underline"
                     >
-                      Forgot access?
+                      Create your account
                     </button>
-                  </div>
-
-                  <div className="pt-2">
-                    <Button
-                      type="submit"
-                      size="lg"
-                      className="w-full"
-                      isLoading={isLoading}
-                      leftIcon={<UserCheck className="w-4 h-4" />}
-                    >
-                      Authorize & Access Workspace
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+                  </p>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
         ) : (
           /* TAB 2: REGISTER */
           <Card>
             <CardContent className="pt-6">
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 <Input
-                  label="Inspector Full Name"
+                  label="Full Name"
                   required
-                  placeholder="e.g. Robin Zhao"
+                  placeholder="e.g. John Doe"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                 />
@@ -365,49 +351,51 @@ export default function LoginPage() {
                   label="Official Work Email"
                   type="email"
                   required
-                  placeholder="r.zhao@pvg-ops.local"
+                  placeholder="name@company.com"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   leftIcon={<Mail className="w-4 h-4" />}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Select
-                    label="Assigned Site"
-                    value={regFacility}
-                    onChange={(e) => setRegFacility(e.target.value)}
-                    options={[
-                      { value: 'Central Logistics Hub A', label: 'Hub A' },
-                      { value: 'Bio-Research Wing 3', label: 'Wing 3' },
-                      { value: 'Chemical Depot West', label: 'Depot West' },
-                      { value: 'Utility Boiler Room B', label: 'Boiler Room B' },
-                    ]}
-                  />
+                <Select
+                  label="Account Role"
+                  value={regRole}
+                  onChange={(e) => setRegRole(e.target.value as UserRole)}
+                  options={[
+                    { value: 'officer', label: 'Field Officer' },
+                    { value: 'admin', label: 'Site Administrator' },
+                  ]}
+                />
 
-                  <Select
-                    label="Requested Role"
-                    value={regRole}
-                    onChange={(e) => setRegRole(e.target.value as UserRole)}
-                    options={[
-                      { value: 'officer', label: 'Field Officer' },
-                      { value: 'admin', label: 'Site Admin' },
-                    ]}
+                <div className="relative">
+                  <Input
+                    label="Create Password"
+                    type={showRegPassword ? 'text' : 'password'}
+                    required
+                    placeholder="At least 6 characters"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    leftIcon={<Key className="w-4 h-4" />}
+                    rightIcon={
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setShowRegPassword((prev) => !prev);
+                        }}
+                        className="text-slate-400 hover:text-slate-700 p-1.5 -mr-1.5 rounded-md focus:outline-none cursor-pointer transition-colors"
+                        aria-label={showRegPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    }
                   />
                 </div>
 
-                <Input
-                  label="Create Password"
-                  type="password"
-                  required
-                  placeholder="••••••••••••"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  leftIcon={<Key className="w-4 h-4" />}
-                />
-
                 <Checkbox
-                  label="Acknowledge local demo policy"
-                  description="I understand this is a mock repository simulation and no real credentials or cloud databases are connected."
+                  label="Accept Terms & Policies"
+                  description="I confirm this account is created for authorized on-site field verification and telemetry capture."
                   checked={regAgreed}
                   onChange={(e) => setRegAgreed(e.target.checked)}
                 />
@@ -421,8 +409,25 @@ export default function LoginPage() {
                     disabled={!regAgreed}
                     leftIcon={<UserPlus className="w-4 h-4" />}
                   >
-                    Register Demo Profile
+                    Create Account
                   </Button>
+                </div>
+
+                <div className="text-center pt-2">
+                  <p className="text-xs text-slate-500">
+                    Already have an account?{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('login');
+                        setErrorMessage(null);
+                        setStatusMessage(null);
+                      }}
+                      className="text-blue-600 font-semibold hover:underline"
+                    >
+                      Sign In here
+                    </button>
+                  </p>
                 </div>
               </form>
             </CardContent>
