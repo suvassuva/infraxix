@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   title: 'Infraxix — Workspace Capture & GPS Verification Platform',
   description:
     'On-site field verification platform for enterprise workspaces, meeting rooms, and coworking facilities with verified optical evidence and hardware GPS telemetry.',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/apple-icon.png',
+  },
 };
 
 export const viewport: Viewport = {
