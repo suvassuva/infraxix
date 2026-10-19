@@ -207,6 +207,30 @@ export default function AdminPage() {
     setEditingUser(null);
   };
 
+  const handleExportLedger = () => {
+    if (!records || records.length === 0) {
+      alert('No workspace records found to export.');
+      return;
+    }
+    const exportPayload = {
+      system: 'INFRAXIX Master Registry',
+      exportedAt: new Date().toISOString(),
+      recordCount: records.length,
+      records: records,
+    };
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `infraxix_audit_ledger_${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setToastMessage(`Administrative audit ledger exported (${records.length} records).`);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
   const handleRunDiagnostics = () => {
     setDiagnosticsRunning(true);
     setTimeout(() => {
@@ -292,7 +316,7 @@ export default function AdminPage() {
             size="sm"
             className="w-full sm:w-auto text-xs py-2"
             leftIcon={<Download className="w-3.5 h-3.5 shrink-0" />}
-            onClick={() => alert('Demo export: Full administrative audit ledger exported.')}
+            onClick={handleExportLedger}
           >
             Export Ledger
           </Button>
@@ -480,6 +504,23 @@ export default function AdminPage() {
             </span>
           </button>
 
+          <button
+            type="button"
+            onClick={() => setSubmissionFilter('flagged')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer flex items-center gap-1.5 ${
+              submissionFilter === 'flagged'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Needs Revisions</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              submissionFilter === 'flagged' ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-800'
+            }`}>
+              {flaggedList.length}
+            </span>
+          </button>
         </div>
 
         <CardContent className="p-0">
@@ -518,9 +559,14 @@ export default function AdminPage() {
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
                   {filteredSubmissions.map((item) => {
-                    const mediaList = item.mediaReferences || [];
+                    const mediaList =
+                      (item.mediaReferences && item.mediaReferences.length > 0
+                        ? item.mediaReferences
+                        : item.attachments) || [];
                     const firstMedia = mediaList[0];
-                    const hasVideo = mediaList.some((m) => m.type === 'video');
+                    const hasVideo = mediaList.some(
+                      (m: any) => m.type === 'video' || m.mediaType === 'video'
+                    );
                     const specs = item.specs;
                     const rent = specs?.rent || item.pricing?.price;
                     const deposit = specs?.deposit || item.pricing?.securityDeposit;
@@ -901,7 +947,10 @@ export default function AdminPage() {
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
             {/* Visual Media Gallery Preview */}
             {(() => {
-              const mediaList = previewRecord.mediaReferences || [];
+              const mediaList =
+                (previewRecord.mediaReferences && previewRecord.mediaReferences.length > 0
+                  ? previewRecord.mediaReferences
+                  : previewRecord.attachments) || [];
               if (mediaList.length === 0) return null;
               return (
                 <div>
@@ -909,25 +958,30 @@ export default function AdminPage() {
                     Optical Evidence ({mediaList.length} Files)
                   </h4>
                   <div className="grid grid-cols-2 gap-2">
-                    {mediaList.map((m, idx: number) => (
-                      <div
-                        key={idx}
-                        className="rounded-lg bg-slate-900 border border-slate-200 overflow-hidden relative aspect-video flex items-center justify-center"
-                      >
-                        {m.uri ? (
-                          <img
-                            src={m.uri}
-                            alt={m.fileName || 'Workspace Capture'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Building className="w-6 h-6 text-slate-500" />
-                        )}
-                        <span className="absolute bottom-1 left-1 bg-slate-950/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono">
-                          {m.type === 'video' ? 'Video Evidence' : 'Photo'}
-                        </span>
-                      </div>
-                    ))}
+                    {mediaList.map((m: any, idx: number) => {
+                      const isVideo = m.type === 'video' || m.mediaType === 'video';
+                      return (
+                        <div
+                          key={idx}
+                          className="rounded-lg bg-slate-900 border border-slate-200 overflow-hidden relative aspect-video flex items-center justify-center"
+                        >
+                          {m.uri && isVideo ? (
+                            <video src={m.uri} className="w-full h-full object-cover" controls />
+                          ) : m.uri ? (
+                            <img
+                              src={m.uri}
+                              alt={m.fileName || m.name || 'Workspace Capture'}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Building className="w-6 h-6 text-slate-500" />
+                          )}
+                          <span className="absolute bottom-1 left-1 bg-slate-950/80 text-white text-[10px] px-1.5 py-0.5 rounded font-mono pointer-events-none">
+                            {isVideo ? 'Video Evidence' : 'Photo'}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

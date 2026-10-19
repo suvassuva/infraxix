@@ -213,10 +213,32 @@ export default function RecordDetailClient({ id }: { id: string }) {
       await deleteRecord();
       setDeleteDialogOpen(false);
       router.push('/');
-    } catch {
-      alert('Failed to delete record from mock ledger.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete record from repository.';
+      alert(msg);
       setIsDeleting(false);
     }
+  };
+
+  const handleExportDossier = () => {
+    if (!record) return;
+    const dossierData = {
+      exportedAt: new Date().toISOString(),
+      system: 'INFRAXIX Audit Compliance Dossier',
+      referenceNumber: record.referenceNumber,
+      record,
+    };
+    const blob = new Blob([JSON.stringify(dossierData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `compliance_dossier_${record.referenceNumber || record.id}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setToastMessage(`Full compliance audit dossier for ${record.referenceNumber} exported successfully.`);
+    setTimeout(() => setToastMessage(null), 4000);
   };
 
   const handleApprove = async () => {
@@ -250,7 +272,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
       <div className="max-w-5xl mx-auto px-4 py-20 text-center text-slate-500 animate-pulse">
         <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
         <p className="font-medium text-slate-700">Loading inspection record from service layer...</p>
-        <p className="text-xs text-slate-400 mt-1">Reading in-memory local repository</p>
+        <p className="text-xs text-slate-400 mt-1">Reading secure database records...</p>
       </div>
     );
   }
@@ -260,7 +282,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
       <div className="max-w-5xl mx-auto px-4 py-16 text-center text-slate-600">
         <h2 className="text-xl font-bold text-slate-900">Record Not Found</h2>
         <p className="text-sm text-slate-500 mt-2">
-          {error?.message || `Record with ID "${id}" could not be located in local memory.`}
+          {error?.message || `Record with ID "${id}" could not be located in database.`}
         </p>
         <div className="mt-6">
           <Link href="/">
@@ -298,7 +320,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
             variant="outline"
             size="sm"
             leftIcon={<Download className="w-3.5 h-3.5" />}
-            onClick={() => alert(`Demo notice: Full compliance audit dossier for ${record.referenceNumber} exported.`)}
+            onClick={handleExportDossier}
           >
             Export Dossier
           </Button>
@@ -1210,7 +1232,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
         isOpen={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         title="Confirm Record Deletion"
-        description="This action will delete the inspection from the local mock ledger."
+        description="This action will permanently delete the inspection record from the database."
         footer={
           <div className="flex items-center justify-end gap-2.5">
             <Button
@@ -1244,7 +1266,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
                 Title: <strong>{record.title}</strong>
               </p>
               <p className="text-rose-700 text-[11px]">
-                This will remove all associated optical attachments, GPS fixes, and audit timeline logs from this local session.
+                This will remove all associated optical attachments, specifications, and audit timeline logs. This action cannot be undone.
               </p>
             </div>
           </div>

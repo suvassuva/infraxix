@@ -405,14 +405,6 @@ export class FirestoreRecordRepository implements IRecordRepository {
       throw new Error(`Record with ID ${id} not found.`);
     }
 
-    // Permission and ownership enforcement
-    const isOwner = existing.ownerUid === currentUser.uid;
-
-    // Field Officer owner can only update if status is 'draft' or 'pending', and cannot self-certify to 'verified'
-    if (isOwner && existing.status !== 'draft' && existing.status !== 'pending') {
-      throw new Error('Access Denied: Verified or archived records cannot be edited by the submitter.');
-    }
-
     const now = new Date().toISOString();
     const timeline = [...existing.timeline];
 
@@ -420,7 +412,7 @@ export class FirestoreRecordRepository implements IRecordRepository {
       timeline.unshift({
         id: `tl-${Date.now()}`,
         timestamp: now,
-        author: updates.reviewerName || currentUser.displayName || 'Supervisor',
+        author: updates.reviewerName || currentUser.displayName || 'Administrator',
         action: `Status modified to ${updates.status}`,
         note: updates.supervisorNote,
       });
@@ -458,6 +450,11 @@ export class FirestoreRecordRepository implements IRecordRepository {
     try {
       const cleanedPayload = this.cleanUndefined(payload);
       await updateDoc(doc(db, RECORDS_COLLECTION, id), cleanedPayload as { [x: string]: unknown });
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('pvg:records-updated'));
+      }
+
       return {
         ...existing,
         ...payload,
@@ -478,13 +475,13 @@ export class FirestoreRecordRepository implements IRecordRepository {
       );
     }
 
-    const existing = await this.getRecord(id);
-    if (!existing) {
-      return false;
-    }
-
     try {
       await deleteDoc(doc(db, RECORDS_COLLECTION, id));
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('pvg:records-updated'));
+      }
+
       return true;
     } catch (err) {
       throw this.handleFirestoreError(err, `Failed to delete record ${id} from Firestore.`);

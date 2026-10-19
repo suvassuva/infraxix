@@ -43,7 +43,36 @@ function formatDeposit(amount?: number): string {
 export function PropertyCard({ property, className = '' }: PropertyCardProps) {
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
-  const mediaList = property.mediaReferences || [];
+  const mediaList = React.useMemo(() => {
+    const list: Array<{ type: 'photo' | 'video'; uri: string; duration?: string; previewColor?: string }> = [];
+    if (property.mediaReferences && property.mediaReferences.length > 0) {
+      property.mediaReferences.forEach((m) => {
+        if (m.uri) {
+          list.push({
+            type: m.type === 'video' ? 'video' : 'photo',
+            uri: m.uri,
+            duration: m.duration,
+            previewColor: m.previewColor,
+          });
+        }
+      });
+    }
+    if (property.attachments && property.attachments.length > 0) {
+      property.attachments.forEach((a) => {
+        const uri = a.uri;
+        if (uri && !list.some((item) => item.uri === uri)) {
+          list.push({
+            type: a.mediaType === 'video' ? 'video' : 'photo',
+            uri,
+            duration: a.duration,
+            previewColor: a.previewColor,
+          });
+        }
+      });
+    }
+    return list;
+  }, [property.mediaReferences, property.attachments]);
+
   const currentMedia = mediaList[activeMediaIndex] || mediaList[0];
   const hasVideo = mediaList.some((m) => m.type === 'video');
 
@@ -76,31 +105,57 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
     >
       {/* Visual Media Header - Compact Height */}
       <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-900">
-        <div
-          className={`absolute inset-0 bg-gradient-to-tr ${
-            currentMedia?.previewColor || 'from-slate-800 via-indigo-950 to-slate-900'
-          } flex flex-col items-center justify-center p-2 text-center transition-transform duration-300 group-hover:scale-102`}
-        >
-          {currentMedia?.type === 'video' ? (
-            <div className="flex flex-col items-center text-white/95">
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
-                <Video className="w-4 h-4 text-white" />
+        {currentMedia?.uri ? (
+          currentMedia.type === 'video' ? (
+            <div className="relative w-full h-full bg-slate-950 flex items-center justify-center">
+              <video
+                src={currentMedia.uri}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+                preload="metadata"
+              />
+              <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-sm">
+                  <Video className="w-4 h-4 text-white" />
+                </div>
               </div>
-              <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
-                Walkthrough ({currentMedia.duration || '00:30'})
-              </span>
             </div>
           ) : (
-            <div className="flex flex-col items-center text-white/95">
-              <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
-                <Camera className="w-4 h-4 text-white" />
+            <img
+              src={currentMedia.uri}
+              alt={property.title || 'Workspace Evidence'}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          )
+        ) : (
+          <div
+            className={`absolute inset-0 bg-gradient-to-tr ${
+              currentMedia?.previewColor || 'from-slate-800 via-indigo-950 to-slate-900'
+            } flex flex-col items-center justify-center p-2 text-center transition-transform duration-300 group-hover:scale-102`}
+          >
+            {currentMedia?.type === 'video' ? (
+              <div className="flex flex-col items-center text-white/95">
+                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
+                  <Video className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
+                  Walkthrough ({currentMedia.duration || '00:30'})
+                </span>
               </div>
-              <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
-                Optical Capture
-              </span>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="flex flex-col items-center text-white/95">
+                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
+                  <Camera className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
+                  Optical Capture
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Top Badges */}
         <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1 z-10 pointer-events-none">
