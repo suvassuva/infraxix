@@ -193,6 +193,18 @@ export default function CapturePage() {
     setTimeout(() => setToastMessage(null), 2500);
   };
 
+  // Auto-confirm any staged camera/upload media directly into the evidence gallery
+  useEffect(() => {
+    if (stagedMedia) {
+      const item = confirmMedia();
+      if (item) {
+        setMediaList((prev) => [...prev, item]);
+        setToastMessage(`${item.mediaType === 'video' ? 'Video' : 'Photo'} attached!`);
+        setTimeout(() => setToastMessage(null), 2500);
+      }
+    }
+  }, [stagedMedia, confirmMedia]);
+
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
 
   // Submission success dialog
@@ -216,10 +228,6 @@ export default function CapturePage() {
     }
     if (trimmedTitle.length > 120) {
       setErrorMessage('Workspace title cannot exceed 120 characters.');
-      return;
-    }
-    if (stagedMedia) {
-      setErrorMessage('You have captured media waiting for review. Please click "Confirm & Attach to Record" or discard it before submitting.');
       return;
     }
 
@@ -901,112 +909,7 @@ export default function CapturePage() {
               </div>
             )}
 
-            {/* Staged Media Review Panel (Inspect captured photo or video before attaching) */}
-            {stagedMedia && (
-              <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl space-y-4 text-white">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-emerald-400" />
-                    <div>
-                      <h4 className="text-sm font-semibold">
-                        Inspect Staged {stagedMedia.type === 'video' ? 'Video Recording' : 'Still Photo'}
-                      </h4>
-                      <p className="text-xs text-slate-400 font-mono">
-                        {stagedMedia.fileName} • {stagedMedia.fileSizeFormatted}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="pending">Awaiting Confirmation</Badge>
-                </div>
 
-                {/* Media Playback / Preview */}
-                <div className="rounded-xl overflow-hidden bg-black flex items-center justify-center max-h-72 border border-slate-800">
-                  {stagedMedia.type === 'photo' ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={stagedMedia.objectUrl}
-                      alt="Captured inspection frame"
-                      className="max-h-72 w-full object-contain"
-                    />
-                  ) : (
-                    <video
-                      src={stagedMedia.objectUrl}
-                      controls
-                      playsInline
-                      className="w-full aspect-video max-h-72 bg-black"
-                    />
-                  )}
-                </div>
-
-                {/* Metadata Details */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono bg-slate-950 p-3 rounded-lg border border-slate-800 text-slate-300">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase block font-sans">Type</span>
-                    {stagedMedia.type.toUpperCase()} ({stagedMedia.mimeType.split(';')[0]})
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase block font-sans">File Size</span>
-                    {stagedMedia.fileSizeFormatted}
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase block font-sans">
-                      {stagedMedia.type === 'video' ? 'Duration' : 'Resolution'}
-                    </span>
-                    {stagedMedia.type === 'video' ? stagedMedia.durationFormatted : stagedMedia.resolution}
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase block font-sans">Audio Track</span>
-                    {stagedMedia.hasAudio ? 'Included (Mic)' : 'Muted'}
-                  </div>
-                </div>
-
-                {/* Staged Review Action Buttons */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="text-slate-300 border-slate-700 hover:bg-slate-800"
-                      onClick={() => {
-                        discardStagedMedia();
-                        openCamera(cameraMode);
-                      }}
-                      leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
-                    >
-                      Retake
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-rose-400 hover:text-rose-300 hover:bg-rose-950/40"
-                      onClick={discardStagedMedia}
-                      leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                    >
-                      Cancel / Discard
-                    </Button>
-                  </div>
-
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="primary"
-                    onClick={() => {
-                      const item = confirmMedia();
-                      if (item) {
-                        setMediaList((prev) => [...prev, item]);
-                        setToastMessage('Evidence media attached!');
-                        setTimeout(() => setToastMessage(null), 3000);
-                      }
-                    }}
-                    leftIcon={<Check className="w-4 h-4" />}
-                  >
-                    Confirm & Attach to Record
-                  </Button>
-                </div>
-              </div>
-            )}
 
             {/* Modern Evidence Gallery Grid (Clean preview without awkward text) */}
             {mediaList.length > 0 && (
@@ -1138,7 +1041,7 @@ export default function CapturePage() {
             )}
 
             {/* Upload Box for selecting files directly */}
-            {!stagedMedia && mediaStatus !== 'previewing' && mediaStatus !== 'recording' && (
+            {mediaStatus !== 'previewing' && mediaStatus !== 'recording' && (
               <div
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
@@ -1151,7 +1054,7 @@ export default function CapturePage() {
                     handleDirectNativeCapture(syntheticEvent);
                   }
                 }}
-                className={`cursor-pointer border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-5 text-center hover:bg-blue-50/20 transition-all group ${
+                className={`cursor-pointer border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-xl p-5 text-center transition-all group ${
                   mediaList.length > 0 ? 'mt-3 py-3.5' : ''
                 }`}
               >
@@ -1163,14 +1066,14 @@ export default function CapturePage() {
                   className="hidden"
                   onChange={handleDirectNativeCapture}
                 />
-                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-1.5 group-hover:scale-105 transition-transform">
+                <div className="w-9 h-9 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-1.5 group-hover:scale-110 transition-transform">
                   <Upload className="w-4 h-4" />
                 </div>
-                <p className="text-xs font-semibold text-slate-800">
-                  {mediaList.length > 0 ? 'Or choose more photos/videos from device gallery' : 'Or select photos & videos from device gallery'}
+                <p className="text-sm font-bold text-slate-800">
+                  {mediaList.length > 0 ? 'Add More Photos & Videos' : 'Upload Photos & Videos'}
                 </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Select single or multiple files • Photos are automatically optimized
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tap to select multiple files from your device
                 </p>
               </div>
             )}
