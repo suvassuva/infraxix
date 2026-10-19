@@ -93,13 +93,18 @@ export class FirestoreRecordRepository implements IRecordRepository {
       return obj;
     }
     if (Array.isArray(obj)) {
-      return obj.map((item) => this.cleanUndefined(item)) as unknown as T;
+      return obj
+        .map((item) => this.cleanUndefined(item))
+        .filter((item) => item !== undefined) as unknown as T;
     }
     if (typeof obj === 'object') {
       const cleaned: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(obj)) {
         if (value !== undefined) {
-          cleaned[key] = this.cleanUndefined(value);
+          const cleanedVal = this.cleanUndefined(value);
+          if (cleanedVal !== undefined) {
+            cleaned[key] = cleanedVal;
+          }
         }
       }
       return cleaned as T;
@@ -341,7 +346,7 @@ export class FirestoreRecordRepository implements IRecordRepository {
       priority: data.priority || 'medium',
       status: 'pending',
       notes: data.notes || '',
-      location: data.location,
+      ...(data.location ? { location: data.location } : {}),
       mediaReferences: sanitizedMedia,
       attachments: sanitizedMedia.map((m): AttachmentItem => ({
         id: m.id,
@@ -366,7 +371,9 @@ export class FirestoreRecordRepository implements IRecordRepository {
       specs: data.specs as PropertySpecs | undefined,
       pricing: data.pricing as PropertyPricing | undefined,
       verificationBadge: data.verificationBadge,
-      doorstepCoordinates: data.doorstepCoordinates || data.location,
+      ...((data.doorstepCoordinates || data.location)
+        ? { doorstepCoordinates: data.doorstepCoordinates || data.location }
+        : {}),
       mobileNumber: data.mobileNumber || '',
       locationLink: data.locationLink || '',
       retentionExpiresAt: data.retentionExpiresAt,

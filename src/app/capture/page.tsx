@@ -315,7 +315,6 @@ export default function CapturePage() {
         defectsFound: parseInt(defectsFound, 10) || 0,
         mobileNumber: mobileNumber.trim() || undefined,
         locationLink: locationLink.trim() || undefined,
-        location: undefined,
         mediaReferences: mediaReferences,
         consentVersion: 'v1.4-2026',
         propertyCategory: workspaceCategory,
@@ -347,7 +346,6 @@ export default function CapturePage() {
           pricePeriod: 'month',
         },
         verificationBadge: activeDataSource === 'firebase' ? 'Firebase Cloud Verified' : 'Field Verified',
-        doorstepCoordinates: undefined,
       });
 
       setUploadProgress(100);

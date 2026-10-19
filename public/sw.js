@@ -1,5 +1,5 @@
 // Infraxix Service Worker for PWA Installation and Offline Capabilities
-const CACHE_NAME = 'infraxix-v1';
+const CACHE_NAME = 'infraxix-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.json',
