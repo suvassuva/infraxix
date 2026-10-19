@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Building2,
   Settings,
@@ -16,7 +16,17 @@ import { NavbarInstallButton } from '@/components/pwa/InstallAppPrompt';
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isAuthenticated, logout, switchRole } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    router.push('/login');
+  };
 
   const isOfficer = user?.role === 'officer';
   const isAdmin = user?.role === 'admin';
@@ -103,7 +113,7 @@ export function Navbar() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => logout()}
+                  onClick={handleLogout}
                   title="Sign out"
                   className="ml-1 p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
                   aria-label="Sign out"

@@ -263,16 +263,26 @@ export default function CapturePage() {
               finalMediaUri = uploadResult.downloadUrl;
               finalUploadState = 'completed';
             } catch (storageErr) {
-              console.warn('[Capture] Storage notice, using optimized embedded fallback:', storageErr);
-              // If cloud storage times out / fails, embed lightweight compressed base64 data-uri
+              console.warn('[Capture] Storage notice, using optimized compact thumbnail fallback:', storageErr);
+              // If cloud storage is not yet provisioned, embed an ultra-compact thumbnail (~20-30KB)
+              // to guarantee the document stays well within Firestore's 1MB limit
               if (item.mediaType === 'image' && item.rawBlob) {
                 try {
-                  finalMediaUri = await blobToDataUrl(item.rawBlob);
+                  const { blob: thumbBlob } = await compressImage(item.rawBlob, {
+                    maxWidth: 480,
+                    maxHeight: 480,
+                    quality: 0.55,
+                    mimeType: 'image/jpeg',
+                  });
+                  finalMediaUri = await blobToDataUrl(thumbBlob);
                 } catch {
-                  finalMediaUri = item.uri || '';
+                  finalMediaUri = '';
                 }
+              } else if (item.mediaType === 'video') {
+                // Videos (several MBs) cannot be embedded as base64 in a 1MB Firestore document
+                finalMediaUri = `video://${item.name}`;
               } else {
-                finalMediaUri = item.uri || '';
+                finalMediaUri = '';
               }
               finalUploadState = 'completed';
             }

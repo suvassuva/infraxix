@@ -114,17 +114,35 @@ export class FirestoreRecordRepository implements IRecordRepository {
 
   /**
    * Sanitizes media items to guarantee metadata-only persistence.
-   * Strips any raw binary buffers, blobs, or large data-uris.
+   * Strips any raw binary buffers, blobs, or large data-uris to stay
+   * strictly below Firestore's 1,048,576 byte hard document limit.
    */
   private sanitizeMediaMetadata(items?: MediaAsset[]): MediaAsset[] {
     if (!items || !Array.isArray(items)) return [];
 
+    let totalDataUriBytes = 0;
+    // Strict budget to prevent exceeding Firestore's 1,048,576 byte hard limit
+    const MAX_TOTAL_MEDIA_DATA_BYTES = 250000; // 250 KB total data-uri payload across all items
+    const MAX_SINGLE_MEDIA_DATA_BYTES = 70000; // 70 KB max per single image
+
     return items.map((m) => {
-      // Preserve lightweight compressed data-uris (under 600KB) so photos render everywhere
-      const safeUri =
-        typeof m.uri === 'string' && m.uri.startsWith('data:') && m.uri.length > 600000
-          ? `metadata://${m.id}`
-          : m.uri;
+      let safeUri = m.uri;
+
+      if (typeof safeUri === 'string') {
+        if (safeUri.startsWith('data:')) {
+          const itemBytes = safeUri.length;
+          if (
+            itemBytes > MAX_SINGLE_MEDIA_DATA_BYTES ||
+            totalDataUriBytes + itemBytes > MAX_TOTAL_MEDIA_DATA_BYTES
+          ) {
+            safeUri = `metadata://${m.id}`;
+          } else {
+            totalDataUriBytes += itemBytes;
+          }
+        } else if (safeUri.startsWith('blob:')) {
+          safeUri = `metadata://${m.id}`;
+        }
+      }
 
       return {
         id: m.id,
@@ -138,6 +156,7 @@ export class FirestoreRecordRepository implements IRecordRepository {
         capturedAt: m.capturedAt || new Date().toISOString(),
         description: m.description,
         resolution: m.resolution,
+        duration: m.duration,
         previewColor: m.previewColor,
         exif: m.exif
           ? {

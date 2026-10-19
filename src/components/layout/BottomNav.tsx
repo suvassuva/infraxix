@@ -2,12 +2,13 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Building2, LogOut, Settings, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const isOfficer = user?.role === 'officer';
   const isAdmin = user?.role === 'admin';
@@ -15,6 +16,15 @@ export function BottomNav() {
   const isRouteActive = (href: string) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    router.push('/login');
   };
 
   return (
@@ -68,11 +78,11 @@ export function BottomNav() {
           </Link>
         )}
 
-        {/* Item 3: Sign Out / Sign In */}
+        {/* Item 4: Sign Out / Sign In */}
         {isAuthenticated ? (
           <button
             type="button"
-            onClick={() => logout()}
+            onClick={handleLogout}
             className="flex-1 flex flex-col items-center justify-center py-1 text-slate-500 hover:text-rose-600 transition-colors"
           >
             <LogOut className="w-5 h-5 transition-transform active:scale-90" />
@@ -81,7 +91,11 @@ export function BottomNav() {
         ) : (
           <Link
             href="/login"
-            className="flex-1 flex flex-col items-center justify-center py-1 text-slate-500 hover:text-blue-600 transition-colors"
+            className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
+              isRouteActive('/login')
+                ? 'text-blue-600 font-semibold'
+                : 'text-slate-500 hover:text-blue-600'
+            }`}
           >
             <User className="w-5 h-5 transition-transform active:scale-90" />
             <span className="text-[10px] mt-1 tracking-tight leading-none">Sign In</span>
