@@ -85,6 +85,29 @@ export class FirestoreRecordRepository implements IRecordRepository {
   }
 
   /**
+   * Recursively strips keys with undefined values from objects and arrays.
+   * Firestore throws an error if any field is undefined.
+   */
+  private cleanUndefined<T>(obj: T): T {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map((item) => this.cleanUndefined(item)) as unknown as T;
+    }
+    if (typeof obj === 'object') {
+      const cleaned: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== undefined) {
+          cleaned[key] = this.cleanUndefined(value);
+        }
+      }
+      return cleaned as T;
+    }
+    return obj;
+  }
+
+  /**
    * Sanitizes media items to guarantee metadata-only persistence.
    * Strips any raw binary buffers, blobs, or large data-uris.
    */
@@ -324,7 +347,8 @@ export class FirestoreRecordRepository implements IRecordRepository {
     };
 
     try {
-      await setDoc(doc(db, RECORDS_COLLECTION, recordId), record);
+      const cleanedRecord = this.cleanUndefined(record);
+      await setDoc(doc(db, RECORDS_COLLECTION, recordId), cleanedRecord as DocumentData);
       return record;
     } catch (err) {
       throw this.handleFirestoreError(err, 'Failed to create record in Firestore.');
@@ -398,7 +422,8 @@ export class FirestoreRecordRepository implements IRecordRepository {
     };
 
     try {
-      await updateDoc(doc(db, RECORDS_COLLECTION, id), payload as { [x: string]: unknown });
+      const cleanedPayload = this.cleanUndefined(payload);
+      await updateDoc(doc(db, RECORDS_COLLECTION, id), cleanedPayload as { [x: string]: unknown });
       return {
         ...existing,
         ...payload,
