@@ -93,6 +93,9 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
       },
     };
 
+    let isSettled = false;
+    let isCancelled = false;
+
     const uploadTask = uploadBytesResumable(storageRef, file, uploadMetadata);
 
     const uploadPromise = new Promise<MediaUploadResult>((resolve, reject) => {
@@ -111,9 +114,24 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
           }
         },
         (error) => {
-          reject(error);
+          if (isSettled) return;
+          isSettled = true;
+          const isCancelErr =
+            isCancelled ||
+            (typeof error === 'object' &&
+              error !== null &&
+              'code' in error &&
+              (error as { code: string }).code === 'storage/canceled');
+
+          if (isCancelErr) {
+            reject(new Error('Firebase Storage upload canceled/timed out. Falling back to local evidence storage.'));
+          } else {
+            reject(error);
+          }
         },
         async () => {
+          if (isSettled) return;
+          isSettled = true;
           try {
             const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
             resolve({
@@ -132,18 +150,24 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
       );
     });
 
-    // Enforce 6-second safety timeout on cloud storage upload to prevent freezing
+    // Suppress unhandled promise rejection in runtime when uploadTask is cancelled
+    uploadPromise.catch(() => {});
+
+    // Enforce 4-second safety timeout on cloud storage upload to prevent freezing
     const timeoutPromise = new Promise<MediaUploadResult>((_, reject) => {
       const timer = setTimeout(() => {
-        try {
-          uploadTask.cancel();
-        } catch {
-          // ignore cancel error
+        if (!isSettled) {
+          isCancelled = true;
+          isSettled = true;
+          try {
+            uploadTask.cancel();
+          } catch {
+            // ignore cancel error
+          }
+          reject(new Error('Firebase Storage upload timed out after 4 seconds.'));
         }
-        reject(new Error('Firebase Storage upload timed out after 6 seconds.'));
-      }, 6000);
+      }, 4000);
 
-      // Clean up timer if upload finishes first
       uploadPromise.finally(() => clearTimeout(timer));
     });
 
