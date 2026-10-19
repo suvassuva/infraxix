@@ -40,13 +40,13 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Clean Hero Header */}
-      <section className="bg-slate-900 text-white pt-4 sm:pt-8 pb-5 sm:pb-8 px-3.5 sm:px-6 lg:px-8 border-b border-slate-800 w-full min-w-0 overflow-hidden">
+      {/* Clean Light Hero Header */}
+      <section className="bg-white text-slate-900 pt-4 sm:pt-8 pb-5 sm:pb-8 px-3.5 sm:px-6 lg:px-8 border-b border-slate-200 w-full min-w-0 overflow-hidden shadow-2xs">
         <div className="max-w-7xl mx-auto space-y-3.5 sm:space-y-5">
           {/* Top Status Pill */}
           <div className="flex items-center">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-[11px] sm:text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 text-[11px] sm:text-xs font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <span className="truncate">
                 {isOfficer
                   ? `Field Officer Station • ${user?.displayName || user?.email || 'Officer'}`
@@ -57,10 +57,10 @@ export default function HomePage() {
 
           {/* Heading */}
           <div className="max-w-2xl">
-            <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-white">
+            <h1 className="text-xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-slate-900">
               {isOfficer ? 'Field Officer Hub' : 'Verified Workspaces'}
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <p className="mt-1 text-xs sm:text-sm text-slate-600 leading-relaxed">
               {isOfficer
                 ? 'Your central workstation for on-site workspace submissions, telemetry GPS verification, and hardware captures.'
                 : 'Browse and inspect on-site verified meeting rooms, executive offices, dedicated desks, and coworking labs.'}
@@ -88,10 +88,10 @@ export default function HomePage() {
                     setSelectedCategory('all');
                     setSearchQuery('');
                   }}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs py-2 px-2.5 sm:px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 font-medium transition-colors cursor-pointer select-none"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs py-2 px-2.5 sm:px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-medium transition-colors cursor-pointer select-none"
                 >
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span className="text-white font-medium">My Submissions ({officerTotal})</span>
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                  <span className="text-slate-800 font-medium">My Submissions ({officerTotal})</span>
                 </button>
               </div>
             )}
@@ -103,17 +103,17 @@ export default function HomePage() {
                   type="text"
                   placeholder={
                     isOfficer
-                      ? 'Search your submitted workspaces, buildings, or tags...'
-                      : 'Search by workspace title, building, or inspector...'
+                      ? 'Search submissions...'
+                      : 'Search workspaces...'
                   }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-800/90 border border-slate-700 text-white placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-2xs"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-white"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-700"
                   >
                     Clear
                   </button>

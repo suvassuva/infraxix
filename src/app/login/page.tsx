@@ -142,21 +142,21 @@ export default function LoginPage() {
   if (user) {
     const targetPath = getDestination(user.role);
     return (
-      <div className="min-h-[85vh] flex items-center justify-center py-6 sm:py-10 px-3.5 sm:px-6 lg:px-8 bg-slate-50 w-full min-w-0 overflow-hidden">
+      <div className="min-h-[85vh] flex items-center justify-center pt-6 pb-28 sm:py-10 px-3.5 sm:px-6 lg:px-8 bg-slate-50 w-full min-w-0">
         <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 text-center shadow-xs space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
             <ShieldCheck className="w-6 h-6 animate-pulse" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Already Signed In</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Active account: <strong className="text-slate-800">{user.displayName || user.email}</strong> ({user.role})
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900">Signed In</h2>
+            <p className="text-xs text-slate-500 mt-1 truncate">
+              {user.displayName || user.email} ({user.role})
             </p>
           </div>
-          <p className="text-xs text-blue-700 bg-blue-50 py-2.5 px-3 rounded-lg border border-blue-200 font-medium">
-            Redirecting to your workspace...
+          <p className="text-xs text-blue-700 bg-blue-50 py-2 px-3 rounded-lg border border-blue-200 font-medium">
+            Redirecting to workspace...
           </p>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
+          <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2">
             <Button
               type="button"
               variant="primary"
@@ -173,7 +173,7 @@ export default function LoginPage() {
               className="w-full sm:w-auto text-slate-600 hover:text-rose-600"
               onClick={() => logout()}
             >
-              Sign Out / Switch Account
+              Sign Out
             </Button>
           </div>
         </div>
@@ -182,18 +182,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-6 sm:py-10 px-3.5 sm:px-6 lg:px-8 bg-slate-50 w-full min-w-0 overflow-hidden">
-      <div className="w-full max-w-md space-y-5 sm:space-y-6">
+    <div className="min-h-[85vh] flex items-center justify-center pt-6 pb-28 sm:py-10 px-3.5 sm:px-6 lg:px-8 bg-slate-50 w-full min-w-0">
+      <div className="w-full max-w-md space-y-4 sm:space-y-5">
         {/* Header */}
         <div className="text-center">
-          <div className="inline-flex w-12 h-12 rounded-2xl bg-blue-600 items-center justify-center text-white shadow-md shadow-blue-500/20 mb-3">
-            <ShieldCheck className="w-7 h-7" />
+          <div className="inline-flex w-11 h-11 rounded-2xl bg-blue-600 items-center justify-center text-white shadow-md shadow-blue-500/20 mb-2.5">
+            <ShieldCheck className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Field Personnel Access Station
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            {activeTab === 'login' ? 'Field Access Portal' : 'Create Account'}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Standardized repository contract • Zero unauthenticated cloud transmission
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            {activeTab === 'login'
+              ? 'Sign in to access your assigned workspaces.'
+              : 'Register your field personnel account.'}
           </p>
         </div>
 
@@ -233,7 +235,7 @@ export default function LoginPage() {
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-xs text-rose-800 font-medium">
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-xs text-rose-800 font-medium">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -241,7 +243,7 @@ export default function LoginPage() {
 
         {/* Success Status Message */}
         {statusMessage && (
-          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-xs text-emerald-800 font-medium animate-in fade-in">
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-xs text-emerald-800 font-medium animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{statusMessage}</span>
           </div>
@@ -250,10 +252,10 @@ export default function LoginPage() {
         {/* TAB 1: LOGIN */}
         {activeTab === 'login' ? (
           <Card>
-            <CardContent className="pt-6">
-              <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <CardContent className="pt-5 sm:pt-6">
+              <form onSubmit={handleLoginSubmit} className="space-y-3.5 sm:space-y-4">
                 <Input
-                  label="Official Work Email"
+                  label="Work Email"
                   type="email"
                   required
                   value={loginEmail}
@@ -264,7 +266,7 @@ export default function LoginPage() {
 
                 <div className="relative">
                   <Input
-                    label="Security Password"
+                    label="Password"
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={loginPassword}
@@ -288,36 +290,36 @@ export default function LoginPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
+                <div className="flex items-center justify-between text-xs pt-0.5">
                   <Checkbox
-                    label="Remember workstation"
+                    label="Remember me"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
                   />
                   <button
                     type="button"
                     onClick={() => alert('Please contact your administrator to reset credentials.')}
-                    className="text-blue-600 hover:underline font-medium"
+                    className="text-blue-600 hover:underline font-medium shrink-0 ml-2"
                   >
                     Forgot password?
                   </button>
                 </div>
 
-                <div className="pt-2">
+                <div className="pt-1">
                   <Button
                     type="submit"
-                    size="lg"
+                    size="md"
                     className="w-full"
                     isLoading={isLoading}
                     leftIcon={<UserCheck className="w-4 h-4" />}
                   >
-                    Authorize & Access Workspace
+                    Sign In
                   </Button>
                 </div>
 
-                <div className="text-center pt-2">
+                <div className="text-center pt-1.5">
                   <p className="text-xs text-slate-500">
-                    First time accessing Infraxix?{' '}
+                    New to Infraxix?{' '}
                     <button
                       type="button"
                       onClick={() => {
@@ -327,7 +329,7 @@ export default function LoginPage() {
                       }}
                       className="text-blue-600 font-semibold hover:underline"
                     >
-                      Create your account
+                      Create account
                     </button>
                   </p>
                 </div>
@@ -337,8 +339,8 @@ export default function LoginPage() {
         ) : (
           /* TAB 2: REGISTER */
           <Card>
-            <CardContent className="pt-6">
-              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <CardContent className="pt-5 sm:pt-6">
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5 sm:space-y-4">
                 <Input
                   label="Full Name"
                   required
@@ -348,7 +350,7 @@ export default function LoginPage() {
                 />
 
                 <Input
-                  label="Official Work Email"
+                  label="Work Email"
                   type="email"
                   required
                   placeholder="name@company.com"
@@ -369,7 +371,7 @@ export default function LoginPage() {
 
                 <div className="relative">
                   <Input
-                    label="Create Password"
+                    label="Password"
                     type={showRegPassword ? 'text' : 'password'}
                     required
                     placeholder="At least 6 characters"
@@ -395,15 +397,15 @@ export default function LoginPage() {
 
                 <Checkbox
                   label="Accept Terms & Policies"
-                  description="I confirm this account is created for authorized on-site field verification and telemetry capture."
+                  description="For authorized field verification use only."
                   checked={regAgreed}
                   onChange={(e) => setRegAgreed(e.target.checked)}
                 />
 
-                <div className="pt-2">
+                <div className="pt-1">
                   <Button
                     type="submit"
-                    size="lg"
+                    size="md"
                     className="w-full"
                     isLoading={isLoading}
                     disabled={!regAgreed}
@@ -413,7 +415,7 @@ export default function LoginPage() {
                   </Button>
                 </div>
 
-                <div className="text-center pt-2">
+                <div className="text-center pt-1.5">
                   <p className="text-xs text-slate-500">
                     Already have an account?{' '}
                     <button
@@ -425,7 +427,7 @@ export default function LoginPage() {
                       }}
                       className="text-blue-600 font-semibold hover:underline"
                     >
-                      Sign In here
+                      Sign In
                     </button>
                   </p>
                 </div>
@@ -435,9 +437,8 @@ export default function LoginPage() {
         )}
 
         <p className="text-center text-xs text-slate-500">
-          Need auditing guidelines? Review our{' '}
           <Link href="/privacy" className="text-blue-600 hover:underline font-medium">
-            Privacy & Compliance Charter
+            Privacy & Compliance Policy
           </Link>
         </p>
       </div>

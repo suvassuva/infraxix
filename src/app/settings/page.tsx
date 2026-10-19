@@ -9,7 +9,6 @@ import {
   Check,
   Save,
   Download,
-  Info,
   Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -59,41 +58,41 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-3.5 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-5 sm:space-y-6 min-w-0 overflow-hidden">
+    <div className="w-full max-w-4xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-5 pb-28 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
       {/* Header */}
       <div className="pb-3 sm:pb-4 border-b border-slate-200">
-        <h1 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-          System & Device Settings
+        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          Settings
         </h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-1 leading-relaxed">
-          Manage your field profile, hardware permission policies, and cloud synchronization preferences.
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          Manage profile, safeguards, and preferences.
         </p>
       </div>
 
       {savedSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 text-sm animate-in fade-in">
-          <Check className="w-5 h-5 text-emerald-600 shrink-0" />
-          <span>Preferences updated successfully.</span>
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-800 text-xs sm:text-sm animate-in fade-in">
+          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Preferences saved successfully.</span>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-4 sm:space-y-6">
         {/* Profile Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Field Officer Profile</CardTitle>
-            <CardDescription>Default signatory for inspection logs and certificates</CardDescription>
+            <CardTitle>Officer Profile</CardTitle>
+            <CardDescription>Default signatory for inspection logs</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardContent className="space-y-3.5 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
               <Input
-                label="Full Legal Name"
+                label="Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
               />
               <Input
-                label="Work Email Address"
+                label="Work Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 type="email"
@@ -101,7 +100,7 @@ export default function SettingsPage() {
               />
             </div>
             <Select
-              label="Primary Assigned Facility"
+              label="Assigned Facility"
               value={facility}
               onChange={(e) => setFacility(e.target.value)}
               options={[
@@ -119,61 +118,61 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-blue-600" />
-              Hardware & Privacy Safeguards
+              <Shield className="w-4 h-4 text-blue-600" />
+              Hardware & Privacy
             </CardTitle>
             <CardDescription>
-              Control how sensors and device hardware operate in the application
+              Sensor and device permission controls
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900">
-                    Prohibit Unsolicited Camera Access
+          <CardContent className="space-y-3.5 sm:space-y-4">
+            <div className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
+                    Camera Protection
                   </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Ensures the camera shutter is never activated without an explicit user press.
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                    Opens only on manual shutter tap.
                   </p>
                 </div>
-                <Badge variant="success">Enforced</Badge>
+                <Badge variant="success" className="shrink-0 text-[10px] sm:text-xs">Enforced</Badge>
               </div>
 
-              <div className="flex items-start justify-between pt-2 border-t border-slate-200/60">
-                <div>
-                  <h4 className="text-sm font-semibold text-slate-900">
-                    Prohibit Automated GPS Geolocation
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
+                <div className="min-w-0">
+                  <h4 className="text-xs sm:text-sm font-semibold text-slate-900 truncate">
+                    GPS Protection
                   </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Location coordinates are exclusively assigned via manual user simulation buttons.
+                  <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
+                    Location tagged only on manual capture.
                   </p>
                 </div>
-                <Badge variant="success">Enforced</Badge>
+                <Badge variant="success" className="shrink-0 text-[10px] sm:text-xs">Enforced</Badge>
               </div>
             </div>
 
             <Checkbox
-              label="Enable Simulated Offline Storage Mode"
-              description="Keep all newly created inspection drafts locally in memory without attempting network transmission."
+              label="Offline Storage Mode"
+              description="Keep drafts locally in browser memory."
               checked={offlineMode}
               onChange={(e) => setOfflineMode(e.target.checked)}
             />
 
             <Checkbox
-              label="Haptic and audio cues on evidence capture"
-              description="Provides tactile response when a simulated photo or document is tagged."
+              label="Haptic & Audio Feedback"
+              description="Vibrate and tone on capture."
               checked={hapticFeedback}
               onChange={(e) => setHapticFeedback(e.target.checked)}
             />
 
-            {/* Clearly disabled feature with explanation */}
-            <div className="p-3 bg-slate-100 rounded-lg border border-slate-200 text-xs text-slate-500 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-slate-400" />
-                <span>Cloud Multi-Device Sync</span>
+            {/* Cloud Multi-Device Sync */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="font-medium truncate">Cloud Multi-Device Sync</span>
               </div>
-              <Badge variant="neutral">Disabled in Phase 1 (Frontend-First)</Badge>
+              <Badge variant="neutral" className="shrink-0 text-[10px] sm:text-xs">Disabled (Phase 1)</Badge>
             </div>
           </CardContent>
         </Card>
@@ -182,71 +181,72 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-blue-600" />
-              Notification Routing
+              <Bell className="w-4 h-4 text-blue-600" />
+              Notifications
             </CardTitle>
-            <CardDescription>Alert dispatch rules for inspections and flags</CardDescription>
+            <CardDescription>Inspection alert and dispatch rules</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 sm:space-y-3.5">
             <Checkbox
-              label="Immediate alert upon Urgent Discrepancy flags"
-              description="Displays banner when an item in your facility is marked critical."
+              label="Urgent Discrepancy Alerts"
+              description="Banner alert when an item is marked critical."
               checked={urgentAlerts}
               onChange={(e) => setUrgentAlerts(e.target.checked)}
             />
             <Checkbox
-              label="Daily morning compliance digest (08:00 Local)"
-              description="Summary of open items across North and South terminals."
+              label="Daily Compliance Digest (08:00)"
+              description="Morning summary of open inspection items."
               checked={dailyDigest}
               onChange={(e) => setDailyDigest(e.target.checked)}
             />
           </CardContent>
         </Card>
 
-        {/* Local Storage & Cache Management */}
+        {/* Storage & Cache Management */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-blue-600" />
-              Local Client Cache Diagnostics
+              <Database className="w-4 h-4 text-blue-600" />
+              Storage & Cache
             </CardTitle>
-            <CardDescription>Browser-level temporary storage and diagnostic state</CardDescription>
+            <CardDescription>Local cache and diagnostic state</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between text-xs p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-slate-600">Active Storage Provider:</span>
-              <span className="font-mono font-semibold text-slate-900">
-                {activeDataSource === 'firebase' ? 'Cloud Firestore (Asia South-1)' : 'Client In-Memory'}
+            <div className="flex items-center justify-between text-xs p-3 bg-slate-50 rounded-xl border border-slate-200 gap-2">
+              <span className="text-slate-500 font-medium">Provider</span>
+              <span className="font-mono font-semibold text-slate-900 text-right truncate">
+                {activeDataSource === 'firebase' ? 'Cloud Firestore' : 'Client In-Memory'}
               </span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                className="text-rose-600 border-rose-300 hover:bg-rose-50"
+                className="w-full text-rose-600 border-rose-300 hover:bg-rose-50"
                 leftIcon={<Trash2 className="w-4 h-4" />}
                 onClick={() => setClearDialogOpen(true)}
               >
-                Clear Client Cache
+                Clear Cache
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-full"
                 leftIcon={<Download className="w-4 h-4" />}
                 onClick={handleExportConfig}
               >
-                Export Settings JSON
+                Export JSON
               </Button>
             </div>
           </CardContent>
         </Card>
 
         {/* Save Bar */}
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="submit" size="md" leftIcon={<Save className="w-4 h-4" />}>
-            Save Preferences
+        <div className="flex justify-end gap-3 pt-1">
+          <Button type="submit" size="md" className="w-full sm:w-auto" leftIcon={<Save className="w-4 h-4" />}>
+            Save Changes
           </Button>
         </div>
       </form>
@@ -255,8 +255,8 @@ export default function SettingsPage() {
       <Dialog
         isOpen={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
-        title="Clear Client Cache"
-        description="Are you sure you want to purge local temporary browser cache?"
+        title="Clear Cache"
+        description="Purge local temporary browser cache?"
         footer={
           <>
             <Button variant="outline" size="sm" onClick={() => setClearDialogOpen(false)}>
@@ -271,16 +271,16 @@ export default function SettingsPage() {
                   window.localStorage.removeItem('pvg_mock_auth_session');
                 }
                 setClearDialogOpen(false);
-                alert('Local temporary cache reset.');
+                alert('Local cache reset.');
               }}
             >
-              Confirm Purge
+              Confirm Clear
             </Button>
           </>
         }
       >
         <p className="text-sm text-slate-600">
-          This purges offline temporary drafts and cached views without modifying remote Firestore documents.
+          This purges offline drafts and cached views without modifying remote Firestore documents.
         </p>
       </Dialog>
     </div>

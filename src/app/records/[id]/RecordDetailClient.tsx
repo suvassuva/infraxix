@@ -304,7 +304,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
           className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-500 hover:text-slate-900 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Workspaces</span>
+          <span>Back</span>
         </Link>
 
         <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -322,7 +322,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
             leftIcon={<Download className="w-3.5 h-3.5" />}
             onClick={handleExportDossier}
           >
-            Export Dossier
+            Export
           </Button>
         </div>
       </div>
@@ -375,35 +375,35 @@ export default function RecordDetailClient({ id }: { id: string }) {
                   </div>
                   {(record.specs?.deposit || record.pricing?.securityDeposit) && (
                     <span className="text-xs font-semibold text-slate-500">
-                      ₹{(record.specs?.deposit || record.pricing?.securityDeposit || 0).toLocaleString('en-IN')} Security Deposit
+                      ₹{(record.specs?.deposit || record.pricing?.securityDeposit || 0).toLocaleString('en-IN')} Deposit
                     </span>
                   )}
                 </div>
               </div>
 
               {/* Doorstep Address & Inspector */}
-              <div className="text-sm text-slate-500 flex flex-wrap items-center gap-4">
-                <span className="inline-flex items-center gap-1.5 font-medium text-slate-700">
-                  <MapPin className="w-4 h-4 text-blue-600" />
-                  {record.location?.address || record.facility}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 text-xs sm:text-sm text-slate-500">
+                <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 min-w-0">
+                  <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span className="truncate">{record.location?.address || record.facility}</span>
                 </span>
-                <span>•</span>
+                <span className="hidden sm:inline text-slate-300">•</span>
                 <span className="inline-flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-slate-400" />
-                  Verified by {record.capturedBy.name} ({record.capturedBy.role})
+                  <User className="w-4 h-4 text-slate-400 shrink-0" />
+                  Verified by {record.capturedBy.name}
                 </span>
               </div>
 
-              {/* Core 11 Commercial Workspace Specifications Grid */}
+              {/* Core Commercial Workspace Specifications Grid */}
               <div className="pt-3">
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Verified Workspace Specifications (11 Parameters)
+                  Workspace Specifications
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
                   {/* Area */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Maximize2 className="w-3 h-3 text-blue-600" /> Area
+                      <Maximize2 className="w-3 h-3 text-blue-600 shrink-0" /> Area
                     </span>
                     <span className="font-bold text-slate-900 text-sm">
                       {record.specs?.areaSqFt ? `${record.specs.areaSqFt.toLocaleString()} sqft` : '—'}
@@ -411,33 +411,33 @@ export default function RecordDetailClient({ id }: { id: string }) {
                   </div>
 
                   {/* Floor */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Layers className="w-3 h-3 text-indigo-600" /> Floor
+                      <Layers className="w-3 h-3 text-indigo-600 shrink-0" /> Floor
                     </span>
                     <span className="font-bold text-slate-900 text-sm">
                       {record.specs?.floorNumber !== undefined
                         ? record.specs.totalFloors
-                          ? `Floor ${record.specs.floorNumber} of ${record.specs.totalFloors}`
+                          ? `Fl ${record.specs.floorNumber}/${record.specs.totalFloors}`
                           : `Floor ${record.specs.floorNumber}`
                         : '—'}
                     </span>
                   </div>
 
                   {/* Clear Height */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Ruler className="w-3 h-3 text-emerald-600" /> Clear Ceiling Ht
+                      <Ruler className="w-3 h-3 text-emerald-600 shrink-0" /> Ceiling Ht
                     </span>
                     <span className="font-bold text-slate-900 text-sm">
                       {record.specs?.clearHeightFt ? `${record.specs.clearHeightFt} ft` : '—'}
                     </span>
                   </div>
 
-                  {/* Beam / Bheem Height */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  {/* Beam Height */}
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Ruler className="w-3 h-3 text-emerald-600" /> Beam (Bheem) Ht
+                      <Ruler className="w-3 h-3 text-teal-600 shrink-0" /> Beam Ht
                     </span>
                     <span className="font-bold text-slate-900 text-sm">
                       {record.specs?.beamHeightFt ? `${record.specs.beamHeightFt} ft` : '—'}
@@ -445,9 +445,9 @@ export default function RecordDetailClient({ id }: { id: string }) {
                   </div>
 
                   {/* Washrooms */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Bath className="w-3 h-3 text-cyan-600" /> Washrooms
+                      <Bath className="w-3 h-3 text-cyan-600 shrink-0" /> Washrooms
                     </span>
                     <span className="font-bold text-slate-900 text-sm">
                       {record.specs?.washrooms !== undefined ? `${record.specs.washrooms} WC` : '—'}
@@ -455,34 +455,34 @@ export default function RecordDetailClient({ id }: { id: string }) {
                   </div>
 
                   {/* Power Backup */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-amber-500" /> Power Backup
+                      <Zap className="w-3 h-3 text-amber-500 shrink-0" /> Power Backup
                     </span>
-                    <span className="font-bold text-slate-900 text-xs truncate block" title={record.specs?.powerBackup || 'None'}>
-                      {record.specs?.powerBackup || '—'}
+                    <span className="font-bold text-slate-900 text-sm truncate block" title={record.specs?.powerBackup || 'None'}>
+                      {record.specs?.powerBackup ? record.specs.powerBackup.replace(/\s*Backup/i, '') : '—'}
                     </span>
                   </div>
 
                   {/* Parking Spaces */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Car className="w-3 h-3 text-purple-600" /> Parking Slots
+                      <Car className="w-3 h-3 text-purple-600 shrink-0" /> Parking
                     </span>
                     <span className="font-bold text-slate-900 text-sm">
-                      {record.specs?.parkingSpaces !== undefined ? `${record.specs.parkingSpaces} slot(s)` : '—'}
+                      {record.specs?.parkingSpaces !== undefined ? `${record.specs.parkingSpaces} Slots` : '—'}
                     </span>
                   </div>
 
                   {/* Lat / Long Coordinates */}
-                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-200 flex flex-col justify-between min-h-[58px]">
                     <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
-                      <Compass className="w-3 h-3 text-blue-600" /> Lat / Long (GPS)
+                      <Compass className="w-3 h-3 text-blue-600 shrink-0" /> GPS Location
                     </span>
-                    <span className="font-mono text-slate-800 text-[11px] truncate block">
+                    <span className="font-bold text-slate-900 text-sm truncate block">
                       {record.location?.latitude !== undefined && record.location?.longitude !== undefined
-                        ? `${record.location.latitude.toFixed(4)}°, ${record.location.longitude.toFixed(4)}°`
-                        : 'Pending GPS'}
+                        ? `${record.location.latitude.toFixed(2)}°, ${record.location.longitude.toFixed(2)}°`
+                        : 'Pending'}
                     </span>
                   </div>
                 </div>
@@ -491,53 +491,45 @@ export default function RecordDetailClient({ id }: { id: string }) {
 
             {/* Action Buttons */}
             {isOfficer ? (
-              <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+              <div className="flex flex-col gap-2 shrink-0 w-full md:w-44">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full sm:w-auto text-slate-700 border-slate-300 hover:bg-slate-50"
-                  leftIcon={<Pencil className="w-4 h-4" />}
+                  className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 justify-center"
+                  leftIcon={<Pencil className="w-3.5 h-3.5" />}
                   onClick={handleOpenEdit}
                 >
-                  Edit My Submission
+                  Edit
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-wrap sm:flex-nowrap md:flex-col gap-2 shrink-0 w-full md:w-auto">
+              <div className="grid grid-cols-3 md:flex md:flex-col gap-2 shrink-0 w-full md:w-40">
                 <Button
                   variant="primary"
                   size="sm"
-                  leftIcon={<Check className="w-4 h-4" />}
+                  className="w-full justify-center"
+                  leftIcon={<Check className="w-3.5 h-3.5" />}
                   onClick={() => setApproveDialogOpen(true)}
                 >
-                  Certify & Approve
+                  Approve
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-slate-700 border-slate-300 hover:bg-slate-50"
-                  leftIcon={<Pencil className="w-4 h-4" />}
+                  className="w-full text-slate-700 border-slate-300 hover:bg-slate-50 justify-center"
+                  leftIcon={<Pencil className="w-3.5 h-3.5" />}
                   onClick={handleOpenEdit}
                 >
-                  Edit Workspace (11 Specs)
+                  Edit
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-amber-700 border-amber-200 hover:bg-amber-50"
-                  leftIcon={<Flag className="w-4 h-4" />}
-                  onClick={() => setFlagDialogOpen(true)}
-                >
-                  Flag Discrepancy
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-rose-600 border-rose-200 hover:bg-rose-50"
-                  leftIcon={<Trash2 className="w-4 h-4" />}
+                  className="w-full text-rose-600 border-rose-200 hover:bg-rose-50 justify-center"
+                  leftIcon={<Trash2 className="w-3.5 h-3.5" />}
                   onClick={() => setDeleteDialogOpen(true)}
                 >
-                  Delete Record
+                  Delete
                 </Button>
               </div>
             )}
@@ -552,27 +544,27 @@ export default function RecordDetailClient({ id }: { id: string }) {
           {/* Key Metrics */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Compliance Metrics & Count</CardTitle>
+              <CardTitle className="text-base">Compliance Metrics</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="block text-2xl font-bold text-slate-900">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 text-center">
+                <div className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col justify-center items-center">
+                  <span className="block text-xl sm:text-2xl font-bold text-slate-900">
                     {record.metrics.complianceScore}%
                   </span>
-                  <span className="text-xs text-slate-500 font-medium">Compliance Grade</span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Score</span>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className="block text-2xl font-bold text-slate-900">
+                <div className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col justify-center items-center">
+                  <span className="block text-xl sm:text-2xl font-bold text-slate-900">
                     {record.metrics.itemsInspected}
                   </span>
-                  <span className="text-xs text-slate-500 font-medium">Items Inspected</span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Inspected</span>
                 </div>
-                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                  <span className={`block text-2xl font-bold ${record.metrics.defectsFound > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                <div className="p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col justify-center items-center">
+                  <span className={`block text-xl sm:text-2xl font-bold ${record.metrics.defectsFound > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                     {record.metrics.defectsFound}
                   </span>
-                  <span className="text-xs text-slate-500 font-medium">Defects Found</span>
+                  <span className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">Defects</span>
                 </div>
               </div>
             </CardContent>
@@ -581,54 +573,40 @@ export default function RecordDetailClient({ id }: { id: string }) {
           {/* Inspector Observations & Notes */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Field Notes & Observations</CardTitle>
+              <CardTitle className="text-base">Field Notes</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200/80">
-                {record.notes}
+            <CardContent>
+              <p className="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3.5 sm:p-4 rounded-xl border border-slate-200/80">
+                {record.notes || 'No field notes provided.'}
               </p>
-
-              <div className="pt-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block mb-2">
-                  Tags & Taxonomy
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {record.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md border border-slate-200 font-medium"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
             </CardContent>
           </Card>
 
           {/* Geolocation & Mock Coordinates Box */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-600" />
-                Physical Location & Coordinates
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle className="text-base flex items-center gap-2 min-w-0">
+                <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="truncate">Location & GPS</span>
               </CardTitle>
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('streets')}
-                  className={`px-2 py-0.5 rounded font-medium ${mapLayer === 'streets' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'}`}
-                >
-                  Cadastral
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('satellite')}
-                  className={`px-2 py-0.5 rounded font-medium ${mapLayer === 'satellite' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'}`}
-                >
-                  Satellite
-                </button>
-              </div>
+              {record.location && (
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setMapLayer('streets')}
+                    className={`px-2 py-0.5 rounded font-medium ${mapLayer === 'streets' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'}`}
+                  >
+                    Cadastral
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMapLayer('satellite')}
+                    className={`px-2 py-0.5 rounded font-medium ${mapLayer === 'satellite' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-600'}`}
+                  >
+                    Satellite
+                  </button>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {record.location ? (
@@ -695,24 +673,24 @@ export default function RecordDetailClient({ id }: { id: string }) {
                   </div>
                 </>
               ) : (
-                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 space-y-3">
-                  <MapPin className="w-8 h-8 text-slate-400 mx-auto opacity-50" />
+                <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-xl text-xs text-slate-500 space-y-2.5">
+                  <MapPin className="w-7 h-7 text-slate-400 mx-auto opacity-50" />
                   <div>
-                    <p className="font-semibold text-slate-800 text-sm">No GPS Coordinates Recorded</p>
-                    <p className="text-slate-500">
-                      This inspection was submitted without physical device GPS lock.
+                    <p className="font-semibold text-slate-800 text-sm">No GPS Recorded</p>
+                    <p className="text-slate-500 text-xs mt-0.5">
+                      Submitted without device GPS lock.
                     </p>
                   </div>
                   {record.locationLink && (
-                    <div className="pt-2">
+                    <div className="pt-1.5 flex justify-center">
                       <a
                         href={record.locationLink}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-white px-3.5 py-2 rounded-lg border border-blue-200 shadow-xs transition-colors"
+                        className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-800 bg-white px-3.5 py-2 rounded-lg border border-blue-200 shadow-xs transition-colors"
                       >
-                        <MapPin className="w-3.5 h-3.5" />
-                        Open Provided Location Link
+                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                        <span>Open Location Link</span>
                       </a>
                     </div>
                   )}

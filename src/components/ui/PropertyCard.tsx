@@ -104,7 +104,7 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
       className={`group relative flex flex-col rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden ${className}`}
     >
       {/* Visual Media Header - Compact Height */}
-      <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-900">
+      <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-100 border-b border-slate-200/60">
         {currentMedia?.uri ? (
           currentMedia.type === 'video' ? (
             <div className="relative w-full h-full bg-slate-950 flex items-center justify-center">
@@ -130,30 +130,10 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
             />
           )
         ) : (
-          <div
-            className={`absolute inset-0 bg-gradient-to-tr ${
-              currentMedia?.previewColor || 'from-slate-800 via-indigo-950 to-slate-900'
-            } flex flex-col items-center justify-center p-2 text-center transition-transform duration-300 group-hover:scale-102`}
-          >
-            {currentMedia?.type === 'video' ? (
-              <div className="flex flex-col items-center text-white/95">
-                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
-                  <Video className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
-                  Walkthrough ({currentMedia.duration || '00:30'})
-                </span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center text-white/95">
-                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-xs mb-1">
-                  <Camera className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-[10px] font-semibold tracking-wide uppercase bg-black/40 px-2 py-0.5 rounded-full">
-                  Optical Capture
-                </span>
-              </div>
-            )}
+          <div className="absolute inset-0 bg-slate-100 flex items-center justify-center p-2 text-center">
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-slate-200 shadow-2xs">
+              <Building2 className="w-5 h-5 text-slate-400" />
+            </div>
           </div>
         )}
 

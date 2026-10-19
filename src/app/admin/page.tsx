@@ -423,25 +423,25 @@ export default function AdminPage() {
       {/* SECTION 1: INCOMING FIELD OFFICER SUBMISSIONS QUEUE */}
       {/* ==================================================================== */}
       <Card className="border-blue-200/80 shadow-xs">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 border-b border-slate-100">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
               <Inbox className="w-5 h-5 text-blue-600 shrink-0" />
-              <CardTitle>Field Officer Submissions Hub</CardTitle>
+              <CardTitle>Submissions Hub</CardTitle>
               {pendingList.length > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                  {pendingList.length} Awaiting Approval
+                  {pendingList.length} Pending
                 </span>
               )}
             </div>
             <CardDescription className="mt-1">
-              On-site optical captures submitted by field officers. Review evidence and approve to publish directly into the catalog.
+              Review and approve field officer submissions.
             </CardDescription>
           </div>
 
-          <div className="w-full sm:w-72">
+          <div className="w-full sm:w-64">
             <Input
-              placeholder="Search title, officer, ref #..."
+              placeholder="Search submissions..."
               value={submissionSearch}
               onChange={(e) => setSubmissionSearch(e.target.value)}
               leftIcon={<Search className="w-4 h-4" />}
@@ -450,7 +450,7 @@ export default function AdminPage() {
         </CardHeader>
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-2 px-4 sm:px-6 py-3 border-b border-slate-100 bg-white overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 px-4 sm:px-6 py-2.5 border-b border-slate-100 bg-white overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setSubmissionFilter('pending')}
@@ -461,7 +461,7 @@ export default function AdminPage() {
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Pending Review</span>
+            <span>Pending</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
               submissionFilter === 'pending' ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-800'
             }`}>
@@ -478,7 +478,7 @@ export default function AdminPage() {
                 : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
             }`}
           >
-            <span>All Submissions</span>
+            <span>All</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
               submissionFilter === 'all' ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-800'
             }`}>
@@ -496,7 +496,7 @@ export default function AdminPage() {
             }`}
           >
             <CheckCircle className="w-3.5 h-3.5" />
-            <span>Published Live</span>
+            <span>Published</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
               submissionFilter === 'verified' ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-800'
             }`}>
@@ -514,7 +514,7 @@ export default function AdminPage() {
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            <span>Needs Revisions</span>
+            <span>Revisions</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
               submissionFilter === 'flagged' ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-800'
             }`}>
@@ -525,19 +525,19 @@ export default function AdminPage() {
 
         <CardContent className="p-0">
           {filteredSubmissions.length === 0 ? (
-            <div className="py-16 text-center px-4 space-y-3">
-              <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                <CheckCircle className="w-6 h-6 text-slate-400" />
+            <div className="py-12 text-center px-4 space-y-2.5">
+              <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <CheckCircle className="w-5 h-5 text-slate-400" />
               </div>
               <h3 className="text-sm font-bold text-slate-800">
                 {submissionFilter === 'pending'
-                  ? 'All submissions caught up!'
-                  : 'No workspace submissions match this filter.'}
+                  ? 'All caught up!'
+                  : 'No matching submissions.'}
               </h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+              <p className="text-xs text-slate-500 max-w-xs mx-auto">
                 {submissionFilter === 'pending'
-                  ? 'There are no pending submissions awaiting review. Any new property uploaded by a field officer will appear here.'
-                  : 'Try clearing your search query or selecting a different status filter tab.'}
+                  ? 'No pending submissions awaiting review.'
+                  : 'Try clearing your search query or selecting another filter.'}
               </p>
               {submissionSearch && (
                 <Button variant="outline" size="sm" onClick={() => setSubmissionSearch('')}>
@@ -767,20 +767,20 @@ export default function AdminPage() {
       {/* SECTION 2: AUTHORIZED PERSONNEL DIRECTORY */}
       {/* ==================================================================== */}
       <Card>
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-600" />
-              Authorized Personnel Directory
+              <Users className="w-5 h-5 text-blue-600 shrink-0" />
+              <span>Personnel Directory</span>
             </CardTitle>
-            <CardDescription>
-              Assign roles, manage workspace access, and track field officer inspection counts.
+            <CardDescription className="mt-1">
+              Manage user roles, access, and field inspections.
             </CardDescription>
           </div>
 
-          <div className="w-full sm:w-72">
+          <div className="w-full sm:w-64">
             <Input
-              placeholder="Filter by name, email, department..."
+              placeholder="Search users..."
               value={userSearchTerm}
               onChange={(e) => setUserSearchTerm(e.target.value)}
               leftIcon={<Search className="w-4 h-4" />}
@@ -793,24 +793,24 @@ export default function AdminPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 <tr>
-                  <th scope="col" className="px-5 py-3">User & Email</th>
-                  <th scope="col" className="px-5 py-3">Role Tier</th>
-                  <th scope="col" className="px-5 py-3">Department</th>
-                  <th scope="col" className="px-5 py-3">Status</th>
-                  <th scope="col" className="px-5 py-3">Inspections</th>
-                  <th scope="col" className="px-5 py-3 text-right">Management</th>
+                  <th scope="col" className="px-4 py-3">User</th>
+                  <th scope="col" className="px-4 py-3">Role</th>
+                  <th scope="col" className="px-4 py-3">Dept</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3">Counts</th>
+                  <th scope="col" className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredUsers.map((u) => (
                   <tr key={u.uid || u.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5">
                       <div className="font-semibold text-slate-900">{u.name || u.displayName}</div>
                       <div className="text-xs font-mono text-slate-500">{u.email}</div>
                     </td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5">
                       <span
-                        className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize border ${
+                        className={`text-xs px-2.5 py-0.5 rounded-full font-medium capitalize border ${
                           u.role === 'admin'
                             ? 'bg-purple-50 text-purple-700 border-purple-200'
                             : u.role === 'supervisor'
@@ -821,8 +821,8 @@ export default function AdminPage() {
                         {u.role}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-xs text-slate-600">{u.department}</td>
-                    <td className="px-5 py-4">
+                    <td className="px-4 py-3.5 text-xs text-slate-600">{u.department}</td>
+                    <td className="px-4 py-3.5">
                       <Badge
                         variant={u.status === 'active' ? 'success' : 'pending'}
                         dot
@@ -830,10 +830,10 @@ export default function AdminPage() {
                         {u.status}
                       </Badge>
                     </td>
-                    <td className="px-5 py-4 text-xs font-semibold text-slate-800">
+                    <td className="px-4 py-3.5 text-xs font-semibold text-slate-800">
                       {u.recordsCount}
                     </td>
-                    <td className="px-5 py-4 text-right">
+                    <td className="px-4 py-3.5 text-right">
                       <Button
                         variant="outline"
                         size="sm"
@@ -856,11 +856,11 @@ export default function AdminPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Terminal className="w-5 h-5 text-blue-600" />
-            Security & Compliance Audit Trail
+            <Terminal className="w-5 h-5 text-blue-600 shrink-0" />
+            <span>Audit Trail</span>
           </CardTitle>
-          <CardDescription>
-            Real-time event logging capturing configuration changes, permissions, and publishing events
+          <CardDescription className="mt-1">
+            System activity logs and administrative events.
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
@@ -868,11 +868,11 @@ export default function AdminPage() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 <tr>
-                  <th scope="col" className="px-5 py-3">Timestamp</th>
-                  <th scope="col" className="px-5 py-3">Initiator</th>
-                  <th scope="col" className="px-5 py-3">Audit Event</th>
-                  <th scope="col" className="px-5 py-3">IP Address</th>
-                  <th scope="col" className="px-5 py-3">Status</th>
+                  <th scope="col" className="px-4 py-3">Time</th>
+                  <th scope="col" className="px-4 py-3">User</th>
+                  <th scope="col" className="px-4 py-3">Event</th>
+                  <th scope="col" className="px-4 py-3">IP</th>
+                  <th scope="col" className="px-4 py-3">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white font-mono text-xs">
