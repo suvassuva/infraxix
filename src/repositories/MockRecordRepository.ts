@@ -254,6 +254,7 @@ export class MockRecordRepository implements IRecordRepository {
       doorstepCoordinates: data.doorstepCoordinates || data.location,
       mobileNumber: data.mobileNumber,
       locationLink: data.locationLink,
+      retentionExpiresAt: data.retentionExpiresAt,
     };
 
     this.records.unshift(newRecord);

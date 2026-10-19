@@ -22,6 +22,8 @@ import {
   MicOff,
   Square,
   FlipHorizontal,
+  Play,
+  Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -38,8 +40,10 @@ import {
   MediaAsset,
   ListingType,
   PropertyCategory,
+  AttachmentItem,
 } from '@/types';
 import { mediaRepository, activeDataSource } from '@/repositories';
+import { compressImage } from '@/utils/imageCompressor';
 
 export default function CapturePage() {
   const router = useRouter();
@@ -130,15 +134,63 @@ export default function CapturePage() {
   const nativePhotoInputRef = useRef<HTMLInputElement>(null);
   const nativeVideoInputRef = useRef<HTMLInputElement>(null);
 
-  const handleDirectNativeCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  // Multi-media evidence list state
+  const [mediaList, setMediaList] = useState<AttachmentItem[]>([]);
+  const [selectedViewerMedia, setSelectedViewerMedia] = useState<AttachmentItem | null>(null);
+
+  // Helper to convert small blobs to data URLs if remote storage fails
+  const blobToDataUrl = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleDirectNativeCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const newAttachments: AttachmentItem[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       const isVideo = file.type.startsWith('video');
-      attachDirectFile(file);
-      setToastMessage(`${isVideo ? 'Video tour' : 'Photo'} captured and attached to record!`);
-      setTimeout(() => setToastMessage(null), 4000);
-      e.target.value = '';
+
+      if (isVideo) {
+        const item = attachDirectFile(file);
+        newAttachments.push(item);
+      } else {
+        // Automatic client-side compression to ~150-250KB
+        try {
+          const { blob } = await compressImage(file, {
+            maxWidth: 1600,
+            maxHeight: 1600,
+            quality: 0.82,
+          });
+          const compressedFile = new File([blob], file.name || `Photo_${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+          });
+          const item = attachDirectFile(compressedFile);
+          newAttachments.push(item);
+        } catch {
+          const item = attachDirectFile(file);
+          newAttachments.push(item);
+        }
+      }
     }
+
+    setMediaList((prev) => [...prev, ...newAttachments]);
+    setToastMessage(`${newAttachments.length} evidence ${newAttachments.length === 1 ? 'item' : 'items'} added!`);
+    setTimeout(() => setToastMessage(null), 3500);
+    e.target.value = '';
+  };
+
+  const handleRemoveMedia = (idToRemove: string) => {
+    setMediaList((prev) => prev.filter((m) => m.id !== idToRemove));
+    setToastMessage('Evidence item removed.');
+    setTimeout(() => setToastMessage(null), 2500);
   };
 
   const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
@@ -166,8 +218,8 @@ export default function CapturePage() {
       setErrorMessage('Workspace title cannot exceed 120 characters.');
       return;
     }
-    if (stagedMedia && !confirmedMedia) {
-      setErrorMessage('You have captured media waiting for review. Please either click "Confirm & Attach to Record" or discard it before submitting.');
+    if (stagedMedia) {
+      setErrorMessage('You have captured media waiting for review. Please click "Confirm & Attach to Record" or discard it before submitting.');
       return;
     }
 
@@ -176,59 +228,71 @@ export default function CapturePage() {
     setUploadStage('Initiating submission...');
 
     try {
-      let finalMediaUri = confirmedMedia?.uri;
-      let finalUploadState: 'completed' | 'uploading' | 'failed' = 'completed';
+      const mediaReferences: MediaAsset[] = [];
+      const totalItems = mediaList.length;
 
-      // 1. Real Media Storage Upload
-      if (confirmedMedia?.rawBlob) {
-        setUploadStage('Uploading media evidence...');
-        try {
-          const uploadResult = await mediaRepository.uploadMedia({
-            file: confirmedMedia.rawBlob,
-            filename: confirmedMedia.name,
-            metadata: {
-              recordId: `wp-${Date.now()}`,
-              mediaType: confirmedMedia.mediaType === 'video' ? 'video' : 'photo',
-            },
-            onProgress: (p) => {
-              // Scale progress smoothly from 15% to 85%
-              const mapped = Math.round(15 + p.percentage * 0.7);
-              setUploadProgress(mapped);
-              setUploadStage(
-                `Uploading evidence (${p.percentage}%)...`
-              );
-            },
-          });
-          finalMediaUri = uploadResult.downloadUrl;
-          finalUploadState = 'completed';
-        } catch (storageErr) {
-          console.warn('[Capture] Storage upload notice:', storageErr);
-          // If storage upload fails, fallback to local preview uri
-          finalMediaUri = confirmedMedia.uri;
-        }
-      }
+      // 1. Process all captured evidence items
+      if (totalItems > 0) {
+        for (let i = 0; i < totalItems; i++) {
+          const item = mediaList[i];
+          const pct = Math.round(15 + ((i + 1) / totalItems) * 70);
+          setUploadProgress(pct);
+          setUploadStage(`Processing evidence item (${i + 1} of ${totalItems})...`);
 
-      // 2. Real Document Creation
-      setUploadProgress(90);
-      setUploadStage('Saving workspace record...');
+          let finalMediaUri = item.uri || '';
+          let finalUploadState: 'completed' | 'uploading' | 'failed' = 'completed';
 
-      const mediaRef: MediaAsset | undefined = confirmedMedia
-        ? {
-            id: confirmedMedia.id,
-            type: confirmedMedia.mediaType === 'video' ? 'video' : 'photo',
-            fileName: confirmedMedia.name,
-            fileSize: confirmedMedia.rawBlob ? confirmedMedia.rawBlob.size : 3.6 * 1024 * 1024,
-            fileSizeFormatted: confirmedMedia.size,
-            mimeType: confirmedMedia.type,
+          if (item.rawBlob) {
+            try {
+              const uploadResult = await mediaRepository.uploadMedia({
+                file: item.rawBlob,
+                filename: item.name,
+                metadata: {
+                  recordId: `wp-${Date.now()}-${i}`,
+                  mediaType: item.mediaType === 'video' ? 'video' : 'photo',
+                },
+              });
+              finalMediaUri = uploadResult.downloadUrl;
+              finalUploadState = 'completed';
+            } catch (storageErr) {
+              console.warn('[Capture] Storage notice, using optimized embedded fallback:', storageErr);
+              // If cloud storage times out / fails, embed lightweight compressed base64 data-uri
+              if (item.mediaType === 'image' && item.rawBlob) {
+                try {
+                  finalMediaUri = await blobToDataUrl(item.rawBlob);
+                } catch {
+                  finalMediaUri = item.uri || '';
+                }
+              } else {
+                finalMediaUri = item.uri || '';
+              }
+              finalUploadState = 'completed';
+            }
+          }
+
+          mediaReferences.push({
+            id: item.id || `media-${Date.now()}-${i}`,
+            type: item.mediaType === 'video' ? 'video' : 'photo',
+            fileName: item.name,
+            fileSize: item.rawBlob ? item.rawBlob.size : 250 * 1024,
+            fileSizeFormatted: item.size,
+            mimeType: item.type,
             uri: finalMediaUri,
             uploadState: finalUploadState,
             capturedAt: new Date().toISOString(),
-            description: confirmedMedia.description,
-            resolution: confirmedMedia.resolution,
-            previewColor: confirmedMedia.previewColor,
-            exif: confirmedMedia.exif,
-          }
-        : undefined;
+            description: item.description,
+            resolution: item.resolution,
+            previewColor: item.previewColor,
+            exif: item.exif,
+          });
+        }
+      }
+
+      // 2. Document Creation with 15-day rolling retention tag
+      setUploadProgress(90);
+      setUploadStage('Saving workspace record to Firestore...');
+
+      const retentionExpiresAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
 
       const parsedRent = rent ? parseInt(rent, 10) : undefined;
       const parsedDeposit = deposit ? parseInt(deposit, 10) : undefined;
@@ -244,13 +308,14 @@ export default function CapturePage() {
         mobileNumber: mobileNumber.trim() || undefined,
         locationLink: locationLink.trim() || undefined,
         location: undefined,
-        mediaReferences: mediaRef ? [mediaRef] : [],
+        mediaReferences: mediaReferences,
         consentVersion: 'v1.4-2026',
         propertyCategory: workspaceCategory,
         ownerUid: user?.uid || '',
         authorName: user?.displayName || user?.email || 'Field Officer',
         authorEmail: user?.email || '',
         authorRole: user?.role || 'officer',
+        retentionExpiresAt: retentionExpiresAt,
         specs: {
           areaSqFt: parseInt(areaSqFt, 10) || 0,
           floorNumber: floorNumber ? parseInt(floorNumber, 10) : undefined,
@@ -674,12 +739,13 @@ export default function CapturePage() {
               </Button>
             </div>
 
-            {/* Hidden Native Device Camera Inputs (Triggers native phone camera directly) */}
+            {/* Hidden Native Device Camera Inputs (Triggers native phone camera directly with multi-select support) */}
             <input
               ref={nativePhotoInputRef}
               type="file"
               accept="image/*"
               capture="environment"
+              multiple
               className="hidden"
               onChange={handleDirectNativeCapture}
             />
@@ -688,6 +754,7 @@ export default function CapturePage() {
               type="file"
               accept="video/*"
               capture="environment"
+              multiple
               className="hidden"
               onChange={handleDirectNativeCapture}
             />
@@ -925,7 +992,14 @@ export default function CapturePage() {
                     type="button"
                     size="sm"
                     variant="primary"
-                    onClick={confirmMedia}
+                    onClick={() => {
+                      const item = confirmMedia();
+                      if (item) {
+                        setMediaList((prev) => [...prev, item]);
+                        setToastMessage('Evidence media attached!');
+                        setTimeout(() => setToastMessage(null), 3000);
+                      }
+                    }}
                     leftIcon={<Check className="w-4 h-4" />}
                   >
                     Confirm & Attach to Record
@@ -934,82 +1008,169 @@ export default function CapturePage() {
               </div>
             )}
 
-            {/* Confirmed Media Card (Attached to inspection draft) */}
-            {confirmedMedia && !stagedMedia && (
-              <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
-                    <div>
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-900">
-                        Evidence Media Confirmed & Attached to Record
-                      </h4>
-                      <p className="text-xs text-emerald-700 font-mono">
-                        {confirmedMedia.name} ({confirmedMedia.size} • {confirmedMedia.mediaType.toUpperCase()})
-                      </p>
-                    </div>
-                  </div>
-
+            {/* Modern Evidence Gallery Grid (Clean preview without awkward text) */}
+            {mediaList.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="primary"
-                      onClick={() => setMediaViewerOpen(true)}
-                      leftIcon={<Eye className="w-3.5 h-3.5" />}
-                    >
-                      Review in Media Viewer
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="border-rose-300 text-rose-700 hover:bg-rose-50"
-                      onClick={removeConfirmedMedia}
-                      leftIcon={<Trash2 className="w-3.5 h-3.5" />}
-                    >
-                      Remove
-                    </Button>
+                    <h4 className="text-sm font-bold text-slate-900">
+                      Attached Evidence
+                    </h4>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                      {mediaList.length} {mediaList.length === 1 ? 'item' : 'items'}
+                    </span>
                   </div>
+                  <span className="text-[11px] text-slate-500 hidden sm:inline">
+                    Tap any frame to preview
+                  </span>
+                </div>
+
+                {/* Thumbnail Card Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {mediaList.map((item, index) => {
+                    const isVideo = item.mediaType === 'video';
+                    return (
+                      <div
+                        key={item.id || index}
+                        className="group relative bg-white rounded-xl overflow-hidden border border-slate-200 shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
+                      >
+                        <div
+                          onClick={() => {
+                            setSelectedViewerMedia(item);
+                            setMediaViewerOpen(true);
+                          }}
+                          className="relative aspect-4/3 w-full bg-slate-900 cursor-pointer overflow-hidden flex items-center justify-center"
+                        >
+                          {isVideo ? (
+                            <>
+                              <video
+                                src={item.uri}
+                                className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/20 transition-colors">
+                                <div className="w-9 h-9 rounded-full bg-white/90 text-slate-900 flex items-center justify-center shadow-md">
+                                  <Play className="w-4 h-4 ml-0.5 fill-current" />
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={item.uri}
+                              alt={`Evidence frame ${index + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          )}
+
+                          {/* Item Type Badge */}
+                          <span
+                            className={`absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md shadow-xs ${
+                              isVideo
+                                ? 'bg-rose-600 text-white'
+                                : 'bg-blue-600 text-white'
+                            }`}
+                          >
+                            {isVideo ? 'Video' : 'Photo'}
+                          </span>
+                        </div>
+
+                        {/* Card Footer with Details & Actions */}
+                        <div className="p-2.5 bg-white flex items-center justify-between gap-1 border-t border-slate-100">
+                          <div className="min-w-0 pr-1">
+                            <span className="text-xs font-semibold text-slate-800 block truncate">
+                              {isVideo ? `Video Tour ${index + 1}` : `Photo ${index + 1}`}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block font-mono">
+                              {item.size}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedViewerMedia(item);
+                                setMediaViewerOpen(true);
+                              }}
+                              title="View full size"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedia(item.id)}
+                              title="Remove this item"
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Buttons to Add More Photos or Videos */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => nativePhotoInputRef.current?.click()}
+                    leftIcon={<Camera className="w-3.5 h-3.5" />}
+                    className="text-xs"
+                  >
+                    + Add Another Photo
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => nativeVideoInputRef.current?.click()}
+                    leftIcon={<Video className="w-3.5 h-3.5" />}
+                    className="text-xs"
+                  >
+                    + Add Another Video
+                  </Button>
                 </div>
               </div>
             )}
 
-            {/* Upload Photo or Video File from Device */}
-            {!confirmedMedia && !stagedMedia && mediaStatus !== 'previewing' && mediaStatus !== 'recording' && (
+            {/* Upload Box for selecting files directly */}
+            {!stagedMedia && mediaStatus !== 'previewing' && mediaStatus !== 'recording' && (
               <div
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
-                  const file = e.dataTransfer.files?.[0];
-                  if (file && (file.type.startsWith('image/') || file.type.startsWith('video/'))) {
-                    stageFileMedia(file);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    const syntheticEvent = {
+                      target: { files: e.dataTransfer.files, value: '' },
+                    } as unknown as React.ChangeEvent<HTMLInputElement>;
+                    handleDirectNativeCapture(syntheticEvent);
                   }
                 }}
-                className="cursor-pointer border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-6 text-center hover:bg-blue-50/20 transition-all group"
+                className={`cursor-pointer border-2 border-dashed border-slate-300 hover:border-blue-400 rounded-xl p-5 text-center hover:bg-blue-50/20 transition-all group ${
+                  mediaList.length > 0 ? 'mt-3 py-3.5' : ''
+                }`}
               >
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*,video/*"
+                  multiple
                   className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      stageFileMedia(file);
-                      e.target.value = '';
-                    }
-                  }}
+                  onChange={handleDirectNativeCapture}
                 />
-                <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2 group-hover:scale-105 transition-transform">
-                  <Upload className="w-5 h-5" />
+                <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-1.5 group-hover:scale-105 transition-transform">
+                  <Upload className="w-4 h-4" />
                 </div>
-                <p className="text-sm font-semibold text-slate-800">
-                  Or upload photos & videos from device
+                <p className="text-xs font-semibold text-slate-800">
+                  {mediaList.length > 0 ? 'Or choose more photos/videos from device gallery' : 'Or select photos & videos from device gallery'}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Click to select or drag & drop high-resolution photos or video walkthroughs
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Select single or multiple files • Photos are automatically optimized
                 </p>
               </div>
             )}
@@ -1080,9 +1241,12 @@ export default function CapturePage() {
 
       {/* Media Viewer Modal Lightbox */}
       <MediaViewer
-        attachment={confirmedMedia}
+        attachment={selectedViewerMedia}
         isOpen={mediaViewerOpen}
-        onClose={() => setMediaViewerOpen(false)}
+        onClose={() => {
+          setMediaViewerOpen(false);
+          setSelectedViewerMedia(null);
+        }}
       />
 
       {/* Submission Success Dialog */}
@@ -1090,7 +1254,7 @@ export default function CapturePage() {
         isOpen={submittedModalOpen}
         onClose={() => setSubmittedModalOpen(false)}
         title="Field Inspection Recorded"
-        description="Your record has been compiled and saved into the local demo session."
+        description="Your verified workspace record has been successfully recorded."
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2 w-full">
             <Button
@@ -1100,7 +1264,7 @@ export default function CapturePage() {
                 setSubmittedModalOpen(false);
                 setTitle('');
                 setNotes('');
-                removeConfirmedMedia();
+                setMediaList([]);
                 setCreatedRecordId('');
               }}
             >
@@ -1164,7 +1328,7 @@ export default function CapturePage() {
             <p><strong>Title:</strong> {title || 'Untitled Inspection'}</p>
             <p><strong>Facility:</strong> {facility}</p>
             <p><strong>Category:</strong> {workspaceCategory}</p>
-            <p><strong>Optical Attachment:</strong> {confirmedMedia ? confirmedMedia.name : 'None attached'}</p>
+            <p><strong>Attached Evidence:</strong> {mediaList.length > 0 ? `${mediaList.length} items attached` : 'None attached'}</p>
             <p className="text-blue-700 font-semibold pt-1">
               • Submitted for verification. Once approved in Admin Hub, it goes live in the public catalog.
             </p>

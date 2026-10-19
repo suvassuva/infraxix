@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PropertyCard } from '@/components/ui/PropertyCard';
-import { useRecords, useStats } from '@/hooks/useRecords';
+import { useRecords } from '@/hooks/useRecords';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function HomePage() {
@@ -20,7 +20,6 @@ export default function HomePage() {
   const { user } = useAuth();
   const isOfficer = user?.role === 'officer';
 
-  const { stats } = useStats();
   const { records, isLoading } = useRecords({
     category: selectedCategory !== 'all' ? selectedCategory : undefined,
     searchTerm: searchQuery || undefined,
@@ -28,11 +27,7 @@ export default function HomePage() {
     pageSize: 12,
   });
 
-  // Calculate personal metrics for the logged-in officer
   const officerTotal = records.length;
-  const officerVerified = records.filter((r) => r.status === 'verified').length;
-  const officerPending = records.filter((r) => r.status === 'pending').length;
-  const officerFlagged = records.filter((r) => r.status === 'flagged').length;
 
   const categories = [
     { id: 'all', label: isOfficer ? 'All My Submissions' : 'All Workspaces' },
@@ -139,51 +134,6 @@ export default function HomePage() {
               )}
             </div>
           </div>
-
-          {/* Quick Metrics Strip */}
-          {isOfficer ? (
-            <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 text-xs">
-              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                <span className="block text-base sm:text-xl font-bold text-white">
-                  {officerTotal}
-                </span>
-                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">My Submissions</span>
-              </div>
-              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                <span className="block text-base sm:text-xl font-bold text-emerald-400">
-                  {officerVerified}
-                </span>
-                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Approved & Verified</span>
-              </div>
-              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                <span className="block text-base sm:text-xl font-bold text-amber-400">
-                  {officerPending}
-                </span>
-                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Pending Review</span>
-              </div>
-              <div className="bg-slate-800/50 p-2 sm:p-2.5 rounded-lg border border-slate-700/50">
-                <span className="block text-base sm:text-xl font-bold text-rose-400">
-                  {officerFlagged}
-                </span>
-                <span className="text-slate-400 text-[10px] sm:text-[11px] block truncate">Flagged / Revisions</span>
-              </div>
-            </div>
-          ) : (
-            <div className="pt-3 border-t border-slate-800/80 grid grid-cols-2 max-w-sm gap-2 sm:gap-3 text-xs">
-              <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                <span className="block text-lg sm:text-xl font-bold text-white">
-                  {stats.totalRecords.toLocaleString()}
-                </span>
-                <span className="text-slate-400 text-[11px]">Total Workspaces</span>
-              </div>
-              <div className="bg-slate-800/50 p-2.5 rounded-xl border border-slate-700/50">
-                <span className="block text-lg sm:text-xl font-bold text-amber-400">
-                  {stats.pendingReview.toLocaleString()}
-                </span>
-                <span className="text-slate-400 text-[11px]">Pending Review</span>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 

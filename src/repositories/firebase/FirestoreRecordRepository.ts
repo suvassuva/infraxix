@@ -92,9 +92,9 @@ export class FirestoreRecordRepository implements IRecordRepository {
     if (!items || !Array.isArray(items)) return [];
 
     return items.map((m) => {
-      // Exclude base64 data-uris to prevent bloating Firestore document
+      // Preserve lightweight compressed data-uris (under 600KB) so photos render everywhere
       const safeUri =
-        typeof m.uri === 'string' && m.uri.startsWith('data:')
+        typeof m.uri === 'string' && m.uri.startsWith('data:') && m.uri.length > 600000
           ? `metadata://${m.id}`
           : m.uri;
 
@@ -159,6 +159,9 @@ export class FirestoreRecordRepository implements IRecordRepository {
       pricing: data.pricing,
       verificationBadge: data.verificationBadge,
       doorstepCoordinates: data.doorstepCoordinates || data.location,
+      mobileNumber: data.mobileNumber,
+      locationLink: data.locationLink,
+      retentionExpiresAt: data.retentionExpiresAt,
       timeline: data.timeline || [],
     };
   }
@@ -309,6 +312,7 @@ export class FirestoreRecordRepository implements IRecordRepository {
       doorstepCoordinates: data.doorstepCoordinates || data.location,
       mobileNumber: data.mobileNumber || '',
       locationLink: data.locationLink || '',
+      retentionExpiresAt: data.retentionExpiresAt,
       timeline: [
         {
           id: `tl-${Date.now()}`,

@@ -201,6 +201,7 @@ export interface CaptureRecord {
   locationLink?: string;
   supervisorNote?: string;
   reviewerName?: string;
+  retentionExpiresAt?: string;
 }
 
 // Backward-compatibility alias
@@ -297,6 +298,7 @@ export interface CreateRecordDTO {
   doorstepCoordinates?: CaptureLocation;
   mobileNumber?: string;
   locationLink?: string;
+  retentionExpiresAt?: string;
 }
 
 export interface UpdateRecordDTO {

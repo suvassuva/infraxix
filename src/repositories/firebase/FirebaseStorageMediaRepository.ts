@@ -95,7 +95,7 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
 
     const uploadTask = uploadBytesResumable(storageRef, file, uploadMetadata);
 
-    return new Promise((resolve, reject) => {
+    const uploadPromise = new Promise<MediaUploadResult>((resolve, reject) => {
       uploadTask.on(
         'state_changed',
         (snapshot) => {
@@ -131,6 +131,23 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
         }
       );
     });
+
+    // Enforce 6-second safety timeout on cloud storage upload to prevent freezing
+    const timeoutPromise = new Promise<MediaUploadResult>((_, reject) => {
+      const timer = setTimeout(() => {
+        try {
+          uploadTask.cancel();
+        } catch {
+          // ignore cancel error
+        }
+        reject(new Error('Firebase Storage upload timed out after 6 seconds.'));
+      }, 6000);
+
+      // Clean up timer if upload finishes first
+      uploadPromise.finally(() => clearTimeout(timer));
+    });
+
+    return Promise.race([uploadPromise, timeoutPromise]);
   }
 
   public async getMediaUrl(storagePathOrId: string): Promise<string> {
