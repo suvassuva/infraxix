@@ -704,63 +704,91 @@ export default function RecordDetailClient({ id }: { id: string }) {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="w-4 h-4 text-blue-600" />
-                Evidence Files & Media ({record.attachments?.length ?? record.mediaReferences.length})
+                Evidence Files & Media ({Math.max(record.attachments?.length || 0, record.mediaReferences?.length || 0)})
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="divide-y divide-slate-100">
-                {(record.attachments ??
-                  record.mediaReferences.map(
-                    (m): AttachmentItem => ({
-                      id: m.id,
-                      name: m.fileName,
-                      size: m.fileSizeFormatted,
-                      type: m.mimeType,
-                      mediaType: m.type === 'video' ? 'video' : m.type === 'pdf' ? 'pdf' : 'image',
-                      uploadState: m.uploadState,
-                      description: m.description,
-                      resolution: m.resolution,
-                      duration: m.duration,
-                      previewColor: m.previewColor,
-                      exif: m.exif,
-                    })
-                  )
-                ).map((att: AttachmentItem) => (
-                  <div
-                    key={att.id}
-                    className="py-3.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition-colors gap-3"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                        {att.mediaType === 'image' && <Camera className="w-4 h-4" />}
-                        {att.mediaType === 'video' && <Film className="w-4 h-4" />}
-                        {att.mediaType === 'pdf' && <FileText className="w-4 h-4" />}
-                      </div>
-                      <div className="truncate">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-slate-900 truncate">{att.name}</p>
-                          {(att.uploadState === 'failed' || att.status === 'failed') && (
-                            <Badge variant="error">Upload Failed</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-400">
-                          {att.size} • {att.mediaType.toUpperCase()}
-                          {att.resolution && ` • ${att.resolution}`}
-                          {att.duration && ` • ${att.duration}`}
-                        </p>
-                      </div>
-                    </div>
+                {(() => {
+                  const rawList =
+                    record.attachments && record.attachments.length > 0
+                      ? record.attachments
+                      : record.mediaReferences && record.mediaReferences.length > 0
+                      ? record.mediaReferences
+                      : [];
 
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      leftIcon={<Eye className="w-3.5 h-3.5" />}
-                      onClick={() => handleOpenMedia(att)}
+                  const normalizedList: AttachmentItem[] = rawList.map((raw: any, idx: number) => {
+                    const isVideo =
+                      raw.mediaType === 'video' ||
+                      raw.type === 'video' ||
+                      (typeof raw.mimeType === 'string' && raw.mimeType.startsWith('video/'));
+                    const isPdf =
+                      raw.mediaType === 'pdf' ||
+                      raw.type === 'pdf' ||
+                      raw.mimeType === 'application/pdf';
+                    const mediaType: 'image' | 'video' | 'pdf' = isVideo ? 'video' : isPdf ? 'pdf' : 'image';
+
+                    return {
+                      id: raw.id || `evidence-${idx}`,
+                      name: raw.name || raw.fileName || (isVideo ? `Video Tour ${idx + 1}` : `Photo ${idx + 1}`),
+                      size: raw.size || raw.fileSizeFormatted || 'Evidence File',
+                      type: raw.type || raw.mimeType || (isVideo ? 'video/mp4' : 'image/jpeg'),
+                      mediaType,
+                      uri: raw.uri || '',
+                      uploadState: raw.uploadState || 'completed',
+                      description: raw.description,
+                      resolution: raw.resolution,
+                      duration: raw.duration,
+                      previewColor: raw.previewColor,
+                      exif: raw.exif,
+                    };
+                  });
+
+                  if (normalizedList.length === 0) {
+                    return (
+                      <p className="text-xs text-slate-400 py-3 italic">
+                        No photo or video evidence attached to this inspection.
+                      </p>
+                    );
+                  }
+
+                  return normalizedList.map((att: AttachmentItem) => (
+                    <div
+                      key={att.id}
+                      className="py-3.5 flex items-center justify-between hover:bg-slate-50 px-2 rounded-lg transition-colors gap-3"
                     >
-                      Open Viewer
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                          {att.mediaType === 'image' && <Camera className="w-4 h-4" />}
+                          {att.mediaType === 'video' && <Film className="w-4 h-4" />}
+                          {att.mediaType === 'pdf' && <FileText className="w-4 h-4" />}
+                        </div>
+                        <div className="truncate">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium text-slate-900 truncate">{att.name}</p>
+                            {(att.uploadState === 'failed' || att.status === 'failed') && (
+                              <Badge variant="error">Upload Failed</Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-slate-400">
+                            {att.size} • {(att.mediaType || 'image').toUpperCase()}
+                            {att.resolution && ` • ${att.resolution}`}
+                            {att.duration && ` • ${att.duration}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        leftIcon={<Eye className="w-3.5 h-3.5" />}
+                        onClick={() => handleOpenMedia(att)}
+                      >
+                        Open Viewer
+                      </Button>
+                    </div>
+                  ));
+                })()}
               </div>
             </CardContent>
           </Card>

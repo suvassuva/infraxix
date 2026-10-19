@@ -170,7 +170,29 @@ export class FirestoreRecordRepository implements IRecordRepository {
       notes: data.notes || '',
       location: data.location,
       mediaReferences: this.sanitizeMediaMetadata(data.mediaReferences),
-      attachments: (data.attachments || []) as AttachmentItem[],
+      attachments: ((data.attachments && data.attachments.length > 0 ? data.attachments : data.mediaReferences) || []).map(
+        (m: any): AttachmentItem => {
+          const isVideo =
+            m.mediaType === 'video' ||
+            m.type === 'video' ||
+            (typeof m.mimeType === 'string' && m.mimeType.startsWith('video/'));
+          const isPdf =
+            m.mediaType === 'pdf' || m.type === 'pdf' || m.mimeType === 'application/pdf';
+          return {
+            id: m.id || `att-${Date.now()}`,
+            name: m.name || m.fileName || 'Evidence File',
+            size: m.size || m.fileSizeFormatted || '0 B',
+            type: m.type || m.mimeType || 'image/jpeg',
+            mediaType: isVideo ? 'video' : isPdf ? 'pdf' : 'image',
+            uri: m.uri || '',
+            uploadState: m.uploadState || 'completed',
+            description: m.description,
+            resolution: m.resolution,
+            previewColor: m.previewColor,
+            exif: m.exif,
+          };
+        }
+      ),
       metrics,
       tags: data.tags || [],
       consentVersion: data.consentVersion || 'v1.0-offline',
@@ -321,7 +343,19 @@ export class FirestoreRecordRepository implements IRecordRepository {
       notes: data.notes || '',
       location: data.location,
       mediaReferences: sanitizedMedia,
-      attachments: sanitizedMedia as unknown as AttachmentItem[],
+      attachments: sanitizedMedia.map((m): AttachmentItem => ({
+        id: m.id,
+        name: m.fileName,
+        size: m.fileSizeFormatted,
+        type: m.mimeType,
+        mediaType: m.type === 'video' ? 'video' : m.type === 'pdf' ? 'pdf' : 'image',
+        uri: m.uri,
+        uploadState: m.uploadState,
+        description: m.description,
+        resolution: m.resolution,
+        previewColor: m.previewColor,
+        exif: m.exif,
+      })),
       metrics,
       tags: data.tags || ['field-inspection'],
       consentVersion: data.consentVersion || 'v1.0-offline',
