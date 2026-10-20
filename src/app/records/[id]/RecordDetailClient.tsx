@@ -197,7 +197,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
         reviewerName: 'Field Inspector (Demo Editor)',
       });
       setEditDialogOpen(false);
-      setToastMessage(`Workspace ${record.referenceNumber} specifications updated successfully.`);
+      setToastMessage(`Workspace "${record.title}" specifications updated successfully.`);
       setTimeout(() => setToastMessage(null), 4000);
     } catch {
       alert('Failed to update workspace record specifications.');
@@ -237,7 +237,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setToastMessage(`Full compliance audit dossier for ${record.referenceNumber} exported successfully.`);
+    setToastMessage(`Full compliance audit dossier for "${record.title}" exported successfully.`);
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -247,7 +247,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
       await approveRecord(supervisorNote || 'Passed all verification checks.');
       setApproveDialogOpen(false);
       setSupervisorNote('');
-      setToastMessage(`Record ${record?.referenceNumber} certified & verified.`);
+      setToastMessage(`Record "${record?.title}" certified & verified.`);
       setTimeout(() => setToastMessage(null), 4000);
     } finally {
       setIsProcessing(false);
@@ -260,7 +260,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
       await flagRecord(supervisorNote || 'Discrepancy noted during audit review.');
       setFlagDialogOpen(false);
       setSupervisorNote('');
-      setToastMessage(`Record ${record?.referenceNumber} flagged for urgent remediation.`);
+      setToastMessage(`Record "${record?.title}" flagged for urgent remediation.`);
       setTimeout(() => setToastMessage(null), 4000);
     } finally {
       setIsProcessing(false);
@@ -875,7 +875,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
         isOpen={approveDialogOpen}
         onClose={() => setApproveDialogOpen(false)}
         title="Certify Field Verification Record"
-        description={`You are validating ${record.referenceNumber} for permanent compliance archiving.`}
+        description="You are validating this workspace for permanent compliance archiving."
         footer={
           <>
             <Button variant="outline" size="sm" onClick={() => setApproveDialogOpen(false)}>
@@ -910,7 +910,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
         isOpen={flagDialogOpen}
         onClose={() => setFlagDialogOpen(false)}
         title="Flag Discrepancy or Safety Violation"
-        description={`Flagging ${record.referenceNumber} will escalate this item for urgent remediation.`}
+        description="Flagging this workspace will escalate this item for urgent remediation."
         footer={
           <>
             <Button variant="outline" size="sm" onClick={() => setFlagDialogOpen(false)}>
@@ -946,7 +946,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
         isOpen={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         title="Edit Workspace Specifications (11 Parameters)"
-        description={`Modify commercial specifications, physical clearance, and coordinates for ${record.referenceNumber}.`}
+        description="Modify commercial specifications, physical clearance, and coordinates."
         size="lg"
         footer={
           <div className="flex items-center justify-end gap-2.5">
@@ -1238,7 +1238,7 @@ export default function RecordDetailClient({ id }: { id: string }) {
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-semibold text-rose-900 text-sm">
-                Permanently delete {record.referenceNumber}?
+                Permanently delete this workspace?
               </p>
               <p className="text-rose-800 leading-relaxed">
                 Title: <strong>{record.title}</strong>

@@ -363,7 +363,7 @@ export default function CapturePage() {
       setGeneratedRefId(created.referenceNumber);
       setCreatedRecordId(created.id);
       setSubmittedModalOpen(true);
-      setToastMessage(`Workspace ${created.referenceNumber} verified and saved!`);
+      setToastMessage(`Workspace "${created.title || 'Record'}" verified and saved!`);
       setTimeout(() => setToastMessage(null), 5000);
     } catch (err: unknown) {
       const e = err as Error;
@@ -1227,10 +1227,10 @@ export default function CapturePage() {
             </div>
             <div>
               <p className="text-xs font-semibold uppercase text-emerald-800">
-                Generated Reference ID
+                Inspection Submitted Successfully
               </p>
-              <p className="text-base font-bold font-mono text-emerald-950">
-                {generatedRefId}
+              <p className="text-base font-bold text-emerald-950">
+                {title || 'New Workspace Record'}
               </p>
             </div>
           </div>

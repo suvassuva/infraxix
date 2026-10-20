@@ -32,6 +32,7 @@ import {
   Ruler,
   Zap,
   ChevronDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card';
@@ -43,6 +44,7 @@ import { useUsers, useAuditLogs, useRecords } from '@/hooks/useRecords';
 import { recordService } from '@/services/recordService';
 import { useAuth } from '@/hooks/useAuth';
 import { UserProfile, CaptureRecord } from '@/types';
+import { downloadRecordsCsv } from '@/utils/csvExport';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -80,6 +82,7 @@ export default function AdminPage() {
   const [newUserRole, setNewUserRole] = useState<'officer' | 'supervisor' | 'admin'>('officer');
   const [diagnosticsRunning, setDiagnosticsRunning] = useState(false);
   const [diagnosticsModalOpen, setDiagnosticsModalOpen] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
 
   // Edit User State
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -167,7 +170,7 @@ export default function AdminPage() {
     setActionLoadingId(record.id);
     try {
       await recordService.deleteRecord(record.id);
-      setToastMessage(`Workspace ${record.referenceNumber} removed from repository.`);
+      setToastMessage(`Workspace "${record.title}" removed from repository.`);
       if (previewRecord?.id === record.id) {
         setPreviewRecord(null);
       }
@@ -207,27 +210,33 @@ export default function AdminPage() {
     setEditingUser(null);
   };
 
-  const handleExportLedger = () => {
+  const handleExportLedger = (format: 'csv' | 'json' = 'csv') => {
     if (!records || records.length === 0) {
       alert('No workspace records found to export.');
       return;
     }
-    const exportPayload = {
-      system: 'INFRAXIX Master Registry',
-      exportedAt: new Date().toISOString(),
-      recordCount: records.length,
-      records: records,
-    };
-    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `infraxix_audit_ledger_${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setToastMessage(`Administrative audit ledger exported (${records.length} records).`);
+    setExportMenuOpen(false);
+    if (format === 'json') {
+      const exportPayload = {
+        system: 'INFRAXIX Master Registry',
+        exportedAt: new Date().toISOString(),
+        recordCount: records.length,
+        records: records,
+      };
+      const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `infraxix_audit_ledger_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setToastMessage(`Administrative audit ledger exported as JSON (${records.length} records).`);
+    } else {
+      downloadRecordsCsv(records);
+      setToastMessage(`Administrative audit ledger exported as CSV for Excel (${records.length} records).`);
+    }
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -311,15 +320,57 @@ export default function AdminPage() {
           >
             Integrity Scan
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full sm:w-auto text-xs py-2"
-            leftIcon={<Download className="w-3.5 h-3.5 shrink-0" />}
-            onClick={handleExportLedger}
-          >
-            Export Ledger
-          </Button>
+          <div className="relative inline-flex items-stretch rounded-lg border border-slate-200 bg-white shadow-xs hover:border-slate-300 transition-colors w-full sm:w-auto">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-l-lg transition-colors flex-1 sm:flex-initial"
+              onClick={() => handleExportLedger('csv')}
+              title="Download spreadsheet directly compatible with Microsoft Excel and Google Sheets"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>Export Ledger</span>
+            </button>
+            <div className="w-px bg-slate-200 my-1" />
+            <button
+              type="button"
+              className="px-2 py-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-r-lg transition-colors"
+              onClick={() => setExportMenuOpen((prev) => !prev)}
+              title="Choose format (CSV for Excel or JSON)"
+              aria-label="Export options"
+              aria-expanded={exportMenuOpen}
+            >
+              <ChevronDown className="w-3 h-3" />
+            </button>
+
+            {exportMenuOpen && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-56 rounded-xl bg-white border border-slate-200 shadow-xl py-1 z-40 divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100"
+              >
+                <button
+                  type="button"
+                  className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  onClick={() => handleExportLedger('csv')}
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <div>
+                    <div className="font-semibold text-slate-900">Excel / CSV (.csv)</div>
+                    <div className="text-[10px] text-slate-500">Opens in Excel & Google Sheets</div>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className="w-full text-left px-3.5 py-2.5 text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                  onClick={() => handleExportLedger('json')}
+                >
+                  <Download className="w-4 h-4 text-blue-600 shrink-0" />
+                  <div>
+                    <div className="font-semibold text-slate-900">Raw JSON (.json)</div>
+                    <div className="text-[10px] text-slate-500">Developer backup format</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
           <Button
             variant="primary"
             size="sm"
@@ -610,12 +661,8 @@ export default function AdminPage() {
                               >
                                 {item.title}
                               </Link>
-                              <div className="text-[11px] font-mono text-slate-400 flex items-center gap-1.5 mt-0.5">
-                                <span>{item.referenceNumber}</span>
-                                <span>•</span>
-                                <span className="text-slate-600 font-sans font-medium">
-                                  {item.propertyCategory || item.category}
-                                </span>
+                              <div className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                <span>{item.propertyCategory || item.category}</span>
                               </div>
                               <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
                                 <span className="truncate max-w-[200px]">{item.facility}</span>
@@ -914,7 +961,7 @@ export default function AdminPage() {
         isOpen={!!previewRecord}
         onClose={() => setPreviewRecord(null)}
         title={previewRecord?.title || 'Workspace Inspection'}
-        description={`Submitted by ${previewRecord?.capturedBy?.name || 'Field Officer'} • Reference: ${previewRecord?.referenceNumber || ''}`}
+        description={`Submitted by ${previewRecord?.capturedBy?.name || 'Field Officer'} • ${previewRecord?.propertyCategory || previewRecord?.category || ''}`}
         footer={
           <div className="flex flex-wrap items-center justify-between gap-2 w-full">
             <Link href={previewRecord ? `/records/${previewRecord.id}` : '#'}>
@@ -1056,7 +1103,7 @@ export default function AdminPage() {
       <Dialog
         isOpen={!!flagModalRecord}
         onClose={() => setFlagModalRecord(null)}
-        title={`Flag Submission: ${flagModalRecord?.referenceNumber || ''}`}
+        title={`Flag Submission: ${flagModalRecord?.title || 'Workspace'}`}
         description="Provide feedback to the field officer specifying what revisions are required before publication."
         footer={
           <>

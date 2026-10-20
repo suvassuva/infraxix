@@ -257,11 +257,7 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
         </div>
 
         {/* Card Footer */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-          <div className="text-slate-400 font-mono text-[10px] truncate">
-            {property.referenceNumber}
-          </div>
-
+        <div className="pt-2 border-t border-slate-100 flex items-center justify-end text-[11px]">
           <Link
             href={`/records/${property.id}`}
             className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:text-blue-700 group-hover:translate-x-0.5 transition-all"
