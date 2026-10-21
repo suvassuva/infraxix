@@ -36,6 +36,7 @@ export function BottomNav() {
         {/* Item 1: Workspaces / My Hub */}
         <Link
           href="/"
+          prefetch={true}
           className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
             isRouteActive('/')
               ? 'text-blue-600 font-semibold'
@@ -52,6 +53,7 @@ export function BottomNav() {
         {isAdmin && (
           <Link
             href="/admin"
+            prefetch={true}
             className={`flex-1 flex flex-col items-center justify-center py-1 transition-colors ${
               isRouteActive('/admin')
                 ? 'text-blue-600 font-semibold'

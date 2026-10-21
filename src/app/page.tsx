@@ -11,32 +11,28 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { PropertyCard } from '@/components/ui/PropertyCard';
+import { DailyLocationShareCard } from '@/components/officer/DailyLocationShareCard';
 import { useRecords } from '@/hooks/useRecords';
 import { useAuth } from '@/hooks/useAuth';
 
 export default function HomePage() {
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const isOfficer = user?.role === 'officer';
 
-  const { records, isLoading } = useRecords({
-    category: selectedCategory !== 'all' ? selectedCategory : undefined,
+  const officerFilter = isOfficer
+    ? [user?.uid, user?.email, user?.displayName].filter(Boolean).join('|')
+    : undefined;
+
+  const { records, isLoading: recordsLoading } = useRecords({
     searchTerm: searchQuery || undefined,
-    ownerUid: isOfficer ? user?.uid : undefined,
+    ownerUid: officerFilter,
     pageSize: 12,
   });
 
-  const officerTotal = records.length;
+  const isLoading = authLoading || recordsLoading;
 
-  const categories = [
-    { id: 'all', label: isOfficer ? 'All My Submissions' : 'All Workspaces' },
-    { id: 'Meeting Room', label: 'Meeting Rooms' },
-    { id: 'Private Office', label: 'Private Offices' },
-    { id: 'Dedicated Desk', label: 'Dedicated Desks' },
-    { id: 'Coworking Floor', label: 'Coworking Floors' },
-    { id: 'Lab / Studio', label: 'Labs & Studios' },
-  ];
+  const officerTotal = records.length;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -71,7 +67,7 @@ export default function HomePage() {
           <div className="flex flex-col gap-2.5 sm:gap-3 max-w-3xl">
             {isOfficer && (
               <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:gap-2.5">
-                <Link href="/capture" className="w-full sm:w-auto">
+                <Link href="/capture" prefetch={true} className="w-full sm:w-auto">
                   <Button
                     variant="primary"
                     size="sm"
@@ -84,10 +80,7 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedCategory('all');
-                    setSearchQuery('');
-                  }}
+                  onClick={() => setSearchQuery('')}
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 text-xs py-2 px-2.5 sm:px-4 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-medium transition-colors cursor-pointer select-none"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600 shrink-0" />
@@ -137,38 +130,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Main Content Area: Category Filter & Grid */}
+      {/* Main Content Area: Grid */}
       <section className="w-full max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6 min-w-0">
-        {/* Workspace Category Filter Pills */}
-        <div className="flex items-center justify-between gap-2.5 flex-wrap border-b border-slate-200 pb-2.5">
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar touch-pan-x w-full sm:w-auto min-w-0">
-            {categories.map((cat) => {
-              const isSelected = selectedCategory === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`shrink-0 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
-                    isSelected
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Field Officer Daily Duty & Live Location Sharing Card */}
+        {isOfficer && (
+          <DailyLocationShareCard />
+        )}
 
-          {user?.role === 'admin' && (
+        {user?.role === 'admin' && (
+          <div className="flex justify-end pb-2">
             <Link
               href="/admin"
               className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors inline-flex items-center gap-1"
             >
               Admin Review Queue <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Workspace Cards Grid */}
         {isLoading ? (
@@ -202,11 +180,10 @@ export default function HomePage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSelectedCategory('all');
                   setSearchQuery('');
                 }}
               >
-                Reset Filters
+                Clear Search
               </Button>
               {isOfficer && (
                 <Link href="/capture">

@@ -312,4 +312,67 @@ describe('Firebase Security Rules & Ownership Enforcement Tests', () => {
       assert.ok(content.includes('allow update: if false'));
     });
   });
+
+  describe('Field Officer Submission Isolation & Multi-Officer Privacy', () => {
+    it('should isolate field officer submissions so officers only see their own records', async () => {
+      const { MockRecordRepository } = await import('../src/repositories/MockRecordRepository');
+      const repo = new MockRecordRepository();
+
+      // Create a submission by officer spotpage
+      await repo.createRecord({
+        title: 'Spotpage Meeting Room Alpha',
+        authorName: 'spotpage',
+        notes: 'Dedicated spotpage inspection',
+      });
+
+      // Create a submission by officer Akhil v
+      await repo.createRecord({
+        title: 'Akhil Private Desk Beta',
+        authorName: 'Akhil v',
+        notes: 'Dedicated Akhil inspection',
+      });
+
+      // Query for spotpage
+      const spotpageResult = await repo.listRecords({ ownerUid: 'spotpage' });
+      assert.ok(spotpageResult.items.length >= 1);
+      assert.ok(spotpageResult.items.every(r => 
+        r.ownerUid?.toLowerCase().includes('spotpage') ||
+        r.capturedBy?.name.toLowerCase().includes('spotpage') ||
+        r.capturedBy?.email?.toLowerCase().includes('spotpage')
+      ), 'spotpage query must only return spotpage submissions');
+      assert.ok(!spotpageResult.items.some(r => r.title.includes('Akhil')), 'spotpage must NOT see Akhil submissions');
+
+      // Query for Akhil v
+      const akhilResult = await repo.listRecords({ ownerUid: 'Akhil v' });
+      assert.ok(akhilResult.items.length >= 1);
+      assert.ok(akhilResult.items.every(r => 
+        r.ownerUid?.toLowerCase().includes('akhil') ||
+        r.capturedBy?.name.toLowerCase().includes('akhil') ||
+        r.capturedBy?.email?.toLowerCase().includes('akhil')
+      ), 'Akhil query must only return Akhil submissions');
+      assert.ok(!akhilResult.items.some(r => r.title.includes('Spotpage')), 'Akhil must NOT see spotpage submissions');
+
+      // Global query without ownerUid (Admin/Supervisor view)
+      const globalResult = await repo.listRecords({ pageSize: 50 });
+      assert.ok(globalResult.items.some(r => r.title.includes('Spotpage')), 'Admin sees spotpage submission');
+      assert.ok(globalResult.items.some(r => r.title.includes('Akhil')), 'Admin sees Akhil submission');
+    });
+
+    it('should validate officerLiveLocations security rules and live location formatting', async () => {
+      const rulesPath = path.resolve(process.cwd(), 'firestore.rules');
+      const content = fs.readFileSync(rulesPath, 'utf-8');
+
+      assert.ok(content.includes('match /officerLiveLocations/{officerUid}'), 'Rules must define officerLiveLocations collection');
+      assert.ok(content.includes('allow write: if isAuthenticated() && (request.auth.uid == officerUid || isAdmin())'), 'Only officer or admin can write live location');
+
+      const { liveLocationService } = await import('../src/services/liveLocationService');
+      const today = liveLocationService.getTodayDateString();
+      assert.match(today, /^\d{4}-\d{2}-\d{2}$/, 'dutyDate format must be YYYY-MM-DD');
+
+      const mapsLink = liveLocationService.buildGoogleMapsLink(12.9716, 77.5946);
+      assert.strictEqual(mapsLink, 'https://www.google.com/maps?q=12.9716,77.5946');
+    });
+  });
 });
+
+

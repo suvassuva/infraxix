@@ -46,3 +46,21 @@ export interface GPSCaptureOptions {
   timeout?: number;
   maximumAge?: number;
 }
+
+export interface OfficerDutyLocation {
+  officerUid: string;
+  officerName: string;
+  officerEmail: string;
+  isLive: boolean;
+  status: 'on_duty' | 'off_duty';
+  dutyDate: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number;
+  altitudeMeters?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+  locationLink: string;
+  startedAt: string;
+  updatedAt: string;
+}

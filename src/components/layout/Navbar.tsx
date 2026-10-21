@@ -76,6 +76,7 @@ export function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={true}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     active
                       ? 'bg-blue-50 text-blue-700 font-semibold shadow-xs'

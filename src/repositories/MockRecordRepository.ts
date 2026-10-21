@@ -133,15 +133,21 @@ export class MockRecordRepository implements IRecordRepository {
 
     // Filter by Owner UID or Officer identity
     if (ownerUid) {
-      const q = ownerUid.toLowerCase().trim();
-      filtered = filtered.filter(
-        (r) =>
-          r.ownerUid?.toLowerCase() === q ||
-          (q.includes('officer') && r.ownerUid === 'usr-alex-rivera') ||
-          (q.includes('rivera') && r.ownerUid === 'usr-alex-rivera') ||
-          r.capturedBy?.email?.toLowerCase() === q ||
-          r.capturedBy?.name?.toLowerCase().includes(q)
-      );
+      const targets = ownerUid.toLowerCase().split('|').map((s) => s.trim()).filter(Boolean);
+      filtered = filtered.filter((r) => {
+        const rUid = (r.ownerUid || '').toLowerCase().trim();
+        const rEmail = (r.capturedBy?.email || '').toLowerCase().trim();
+        const rName = (r.capturedBy?.name || '').toLowerCase().trim();
+
+        return targets.some(
+          (target) =>
+            (rUid && rUid === target) ||
+            (target.includes('officer') && r.ownerUid === 'usr-alex-rivera') ||
+            (target.includes('rivera') && r.ownerUid === 'usr-alex-rivera') ||
+            (rEmail && rEmail === target) ||
+            (rName && (rName === target || rName.includes(target) || target.includes(rName)))
+        );
+      });
     }
 
     // Sorting

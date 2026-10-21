@@ -44,6 +44,7 @@ import {
 } from '@/types';
 import { mediaRepository, activeDataSource } from '@/repositories';
 import { compressImage } from '@/utils/imageCompressor';
+import { localMediaStore } from '@/services/localMediaStore';
 
 export default function CapturePage() {
   const router = useRouter();
@@ -220,94 +221,110 @@ export default function CapturePage() {
       return;
     }
 
-    // Validation checks
+    // Smart auto-defaults: Allow partial/unfilled submission
     const trimmedTitle = title.trim();
-    if (trimmedTitle.length < 3) {
-      setErrorMessage('Workspace title must be at least 3 characters long before saving.');
-      return;
-    }
-    if (trimmedTitle.length > 120) {
-      setErrorMessage('Workspace title cannot exceed 120 characters.');
-      return;
+    const now = new Date();
+    const dateFormatted = now.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    // If title is missing or < 3 chars, auto-generate a clean, informative title
+    const defaultTitle = `Workspace Verification - ${dateFormatted}`;
+    let finalTitle = trimmedTitle.length >= 3 ? trimmedTitle : defaultTitle;
+    if (finalTitle.length > 120) {
+      finalTitle = finalTitle.slice(0, 120);
     }
 
+    const finalFacility = facility.trim() || 'On-site Verification';
+    const finalNotes = notes.trim() || 'Field verification submitted on-site.';
+    const finalItemsInspected = parseInt(itemsInspected, 10) || 1;
+    const finalArea = areaSqFt ? parseInt(areaSqFt, 10) : 0;
+
     setIsUploading(true);
-    setUploadProgress(10);
+    setUploadProgress(20);
     setUploadStage('Initiating submission...');
 
     try {
-      const mediaReferences: MediaAsset[] = [];
+      let mediaReferences: MediaAsset[] = [];
       const totalItems = mediaList.length;
 
-      // 1. Process all captured evidence items
+      // 1. Process all captured evidence items in parallel for maximum speed
       if (totalItems > 0) {
-        for (let i = 0; i < totalItems; i++) {
-          const item = mediaList[i];
-          const pct = Math.round(15 + ((i + 1) / totalItems) * 70);
-          setUploadProgress(pct);
-          setUploadStage(`Processing evidence item (${i + 1} of ${totalItems})...`);
+        setUploadStage(`Preparing evidence (${totalItems} items)...`);
+        setUploadProgress(40);
 
-          let finalMediaUri = item.uri || '';
-          let finalUploadState: 'completed' | 'uploading' | 'failed' = 'completed';
+        mediaReferences = await Promise.all(
+          mediaList.map(async (item, i) => {
+            let finalMediaUri = item.uri || '';
+            let finalUploadState: 'completed' | 'uploading' | 'failed' = 'completed';
 
-          if (item.rawBlob) {
-            try {
-              const uploadResult = await mediaRepository.uploadMedia({
-                file: item.rawBlob,
-                filename: item.name,
-                metadata: {
-                  recordId: `wp-${Date.now()}-${i}`,
-                  mediaType: item.mediaType === 'video' ? 'video' : 'photo',
-                },
-              });
-              finalMediaUri = uploadResult.downloadUrl;
-              finalUploadState = 'completed';
-            } catch (storageErr) {
-              console.warn('[Capture] Storage notice, using optimized compact thumbnail fallback:', storageErr);
-              // If cloud storage is not yet provisioned, embed an ultra-compact thumbnail (~20-30KB)
-              // to guarantee the document stays well within Firestore's 1MB limit
-              if (item.mediaType === 'image' && item.rawBlob) {
-                try {
-                  const { blob: thumbBlob } = await compressImage(item.rawBlob, {
-                    maxWidth: 480,
-                    maxHeight: 480,
-                    quality: 0.55,
-                    mimeType: 'image/jpeg',
-                  });
-                  finalMediaUri = await blobToDataUrl(thumbBlob);
-                } catch {
+            if (item.rawBlob) {
+              // Asynchronous non-blocking local caching in IndexedDB
+              localMediaStore
+                .saveMedia(item.id || item.name, item.rawBlob, {
+                  fileName: item.name,
+                  mimeType: item.type,
+                })
+                .catch(() => {});
+
+              // Fast cloud upload with snappy timeout fallback
+              try {
+                const uploadResult = await mediaRepository.uploadMedia({
+                  file: item.rawBlob,
+                  filename: item.name,
+                  metadata: {
+                    recordId: `wp-${Date.now()}-${i}`,
+                    mediaType: item.mediaType === 'video' ? 'video' : 'photo',
+                  },
+                });
+                finalMediaUri = uploadResult.downloadUrl;
+                finalUploadState = 'completed';
+              } catch (storageErr) {
+                console.warn('[Capture] Rapid storage fallback activated:', storageErr);
+                if (item.mediaType === 'image' && item.rawBlob) {
+                  try {
+                    const { blob: thumbBlob } = await compressImage(item.rawBlob, {
+                      maxWidth: 480,
+                      maxHeight: 480,
+                      quality: 0.55,
+                      mimeType: 'image/jpeg',
+                    });
+                    finalMediaUri = await blobToDataUrl(thumbBlob);
+                  } catch {
+                    finalMediaUri = '';
+                  }
+                } else if (item.mediaType === 'video') {
+                  finalMediaUri = `video://${item.name}`;
+                } else {
                   finalMediaUri = '';
                 }
-              } else if (item.mediaType === 'video') {
-                // Videos (several MBs) cannot be embedded as base64 in a 1MB Firestore document
-                finalMediaUri = `video://${item.name}`;
-              } else {
-                finalMediaUri = '';
+                finalUploadState = 'completed';
               }
-              finalUploadState = 'completed';
             }
-          }
 
-          mediaReferences.push({
-            id: item.id || `media-${Date.now()}-${i}`,
-            type: item.mediaType === 'video' ? 'video' : 'photo',
-            fileName: item.name,
-            fileSize: item.rawBlob ? item.rawBlob.size : 250 * 1024,
-            fileSizeFormatted: item.size,
-            mimeType: item.type,
-            uri: finalMediaUri,
-            uploadState: finalUploadState,
-            capturedAt: new Date().toISOString(),
-            description: item.description,
-            resolution: item.resolution,
-            previewColor: item.previewColor,
-            exif: item.exif,
-          });
-        }
+            return {
+              id: item.id || `media-${Date.now()}-${i}`,
+              type: item.mediaType === 'video' ? 'video' : 'photo',
+              fileName: item.name,
+              fileSize: item.rawBlob ? item.rawBlob.size : 250 * 1024,
+              fileSizeFormatted: item.size,
+              mimeType: item.type,
+              uri: finalMediaUri,
+              uploadState: finalUploadState,
+              capturedAt: new Date().toISOString(),
+              description: item.description,
+              resolution: item.resolution,
+              previewColor: item.previewColor,
+              exif: item.exif,
+            };
+          })
+        );
       }
 
       // 2. Document Creation with 15-day rolling retention tag
-      setUploadProgress(90);
+      setUploadProgress(85);
       setUploadStage('Saving workspace record to Firestore...');
 
       const retentionExpiresAt = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
@@ -316,12 +333,12 @@ export default function CapturePage() {
       const parsedDeposit = deposit ? parseInt(deposit, 10) : undefined;
 
       const created = await createRecord({
-        title: title.trim(),
-        notes,
+        title: finalTitle,
+        notes: finalNotes,
         category: workspaceCategory,
-        facility: facility,
+        facility: finalFacility,
         priority: priority as 'low' | 'medium' | 'high' | 'urgent',
-        itemsInspected: parseInt(itemsInspected, 10) || 12,
+        itemsInspected: finalItemsInspected,
         defectsFound: parseInt(defectsFound, 10) || 0,
         mobileNumber: mobileNumber.trim() || undefined,
         locationLink: locationLink.trim() || undefined,
@@ -334,7 +351,7 @@ export default function CapturePage() {
         authorRole: user?.role || 'officer',
         retentionExpiresAt: retentionExpiresAt,
         specs: {
-          areaSqFt: parseInt(areaSqFt, 10) || 0,
+          areaSqFt: finalArea,
           floorNumber: floorNumber ? parseInt(floorNumber, 10) : undefined,
           totalFloors: totalFloors ? parseInt(totalFloors, 10) : undefined,
           rent: parsedRent,
@@ -429,34 +446,14 @@ export default function CapturePage() {
             <CardDescription>Enter property dimensions, pricing, and infrastructure capacity.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            {/* Title & Category */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="sm:col-span-2">
-                <Input
-                  label="Workspace Title"
-                  required
-                  placeholder="e.g., Apex Executive Boardroom & AV Suite"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                />
-              </div>
-
-              <Select
-                label="Category"
-                required
-                value={workspaceCategory}
-                onChange={(e) => {
-                  const val = e.target.value as PropertyCategory;
-                  setWorkspaceCategory(val);
-                }}
-                options={[
-                  { value: 'Meeting Room', label: 'Meeting Room' },
-                  { value: 'Private Office', label: 'Private Office' },
-                  { value: 'Dedicated Desk', label: 'Dedicated Desk' },
-                  { value: 'Coworking Floor', label: 'Coworking Floor' },
-                  { value: 'Lab / Studio', label: 'Lab / Studio' },
-                  { value: 'Executive Suite', label: 'Executive Suite' },
-                ]}
+            {/* Workspace Title */}
+            <div>
+              <Input
+                label="Workspace Title"
+                placeholder="e.g., Apex Executive Boardroom (Auto-generated if left blank)"
+                helperText="Auto-generated with timestamp if left blank"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </div>
 
@@ -464,10 +461,10 @@ export default function CapturePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label="Building & Facility Location"
-                required
-                placeholder="e.g., Tech Park Tower 1, Level 4, Bay Area"
+                placeholder="e.g., Tech Park Tower 1, Level 4 (Optional)"
                 value={facility}
                 onChange={(e) => setFacility(e.target.value)}
+                helperText="Defaults to on-site verification if blank"
               />
 
               <Input
@@ -491,9 +488,8 @@ export default function CapturePage() {
                 <Input
                   label="Area (sq ft)"
                   type="number"
-                  min="1"
-                  required
-                  placeholder="e.g. 1200"
+                  min="0"
+                  placeholder="e.g. 1200 (Optional)"
                   value={areaSqFt}
                   onChange={(e) => setAreaSqFt(e.target.value)}
                 />
@@ -608,8 +604,8 @@ export default function CapturePage() {
               <Input
                 label="Rooms Inspected"
                 type="number"
-                min="1"
-                required
+                min="0"
+                placeholder="e.g., 1 (Optional)"
                 value={itemsInspected}
                 onChange={(e) => setItemsInspected(e.target.value)}
               />
@@ -617,7 +613,7 @@ export default function CapturePage() {
               <Input
                 label="Mobile Number"
                 type="tel"
-                placeholder="e.g., +91 98765 43210"
+                placeholder="e.g., +91 98765 43210 (Optional)"
                 value={mobileNumber}
                 onChange={(e) => setMobileNumber(e.target.value)}
               />
@@ -625,11 +621,11 @@ export default function CapturePage() {
 
             <Textarea
               label="Inspector Notes & Observations"
-              required
               rows={3}
-              placeholder="Record observations, key amenities, optical condition, or site remarks..."
+              placeholder="Record observations, key amenities, optical condition, or site remarks... (Optional)"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
+              helperText="Optional on-site notes"
             />
           </CardContent>
         </Card>

@@ -182,5 +182,28 @@ describe('Validation Layer Tests', () => {
       assert.strictEqual(result.valid, false);
       assert.strictEqual(result.errors.some((e) => e.code === 'FILE_LIMIT_EXCEEDED'), true);
     });
+
+    it('should approve partial records with auto-generated title and optional specs/notes omitted', () => {
+      const now = new Date();
+      const dateFormatted = now.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const autoTitle = `Meeting Room Verification - ${dateFormatted}`;
+
+      const dto: CreateRecordDTO = {
+        title: autoTitle,
+        category: 'Meeting Room',
+        facility: 'On-site Verification',
+        notes: 'Field verification submitted on-site.',
+        itemsInspected: 1,
+      };
+
+      const result = validateCreateRecord(dto);
+      assert.strictEqual(result.valid, true);
+      assert.strictEqual(result.errors.length, 0);
+    });
   });
 });

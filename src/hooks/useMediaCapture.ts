@@ -20,6 +20,7 @@ import {
   MAX_CAPTURE_FILE_BYTES,
   AUDIO_DISCLOSURE_NOTICE,
 } from '@/services/mediaCaptureService';
+import { localMediaStore } from '@/services/localMediaStore';
 
 export interface UseMediaCaptureReturn {
   // State
@@ -138,7 +139,25 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
           includeAudio: targetMode === 'video' && targetAudio,
         });
 
-        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        let newStream: MediaStream;
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (mediaErr) {
+          // If audio capture failed (e.g. no microphone found or mic permission denied),
+          // fall back gracefully to video-only so camera stream still functions
+          if (targetMode === 'video' && targetAudio) {
+            console.warn('[useMediaCapture] Audio track acquisition failed, falling back to silent video stream:', mediaErr);
+            const fallbackConstraints = mediaCaptureService.getRecommendedConstraints({
+              facingMode: targetFacing,
+              includeAudio: false,
+            });
+            newStream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+            setIncludeAudioState(false);
+          } else {
+            throw mediaErr;
+          }
+        }
+
         streamRef.current = newStream;
         setStream(newStream);
         setStatus('previewing');
@@ -167,7 +186,12 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
   const openCamera = useCallback(
     async (initialMode: MediaCaptureMode = 'photo'): Promise<boolean> => {
       setMode(initialMode);
-      return startStream(initialMode, facingMode, includeAudio);
+      // Automatically arm microphone when in video mode so voice commentary is recorded
+      const audioToUse = initialMode === 'video' ? true : includeAudio;
+      if (initialMode === 'video') {
+        setIncludeAudioState(true);
+      }
+      return startStream(initialMode, facingMode, audioToUse);
     },
     [facingMode, includeAudio, startStream]
   );
@@ -207,8 +231,13 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
     async (newMode: MediaCaptureMode) => {
       if (mode === newMode) return;
       setMode(newMode);
+      // When switching to video mode, automatically arm audio so voice commentary is enabled
+      const audioToUse = newMode === 'video' ? true : includeAudio;
+      if (newMode === 'video') {
+        setIncludeAudioState(true);
+      }
       if (status === 'previewing' || status === 'requesting') {
-        await startStream(newMode, facingMode, includeAudio);
+        await startStream(newMode, facingMode, audioToUse);
       }
     },
     [facingMode, includeAudio, mode, startStream, status]
@@ -443,6 +472,15 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
     setConfirmedMedia(attachment);
     setStagedMedia(null);
     setStatus('idle');
+
+    // Cache to local IndexedDB store for instant offline video & audio playback
+    if (stagedMedia.blob) {
+      localMediaStore.saveMedia(stagedMedia.id, stagedMedia.blob, {
+        fileName: stagedMedia.fileName,
+        mimeType: stagedMedia.mimeType,
+      });
+    }
+
     return attachment;
   }, [facingMode, stagedMedia]);
 
@@ -519,6 +557,13 @@ export function useMediaCapture(initialAttachment?: AttachmentItem | null): UseM
       setConfirmedMedia(attachment);
       setStagedMedia(null);
       setStatus('idle');
+
+      // Cache directly to local IndexedDB store
+      localMediaStore.saveMedia(attachment.id, file, {
+        fileName: file.name,
+        mimeType: file.type,
+      });
+
       return attachment;
     },
     [registerObjectUrl]

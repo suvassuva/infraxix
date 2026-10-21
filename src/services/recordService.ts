@@ -27,19 +27,34 @@ export class RecordService {
   }
 
   public async createRecord(data: CreateRecordDTO): Promise<CaptureRecord> {
-    return this.repository.createRecord(data);
+    const record = await this.repository.createRecord(data);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pvg:records-updated'));
+    }
+    return record;
   }
 
   public async updateRecord(id: string, updates: UpdateRecordDTO): Promise<CaptureRecord> {
-    return this.repository.updateRecord(id, updates);
+    const record = await this.repository.updateRecord(id, updates);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pvg:records-updated'));
+    }
+    return record;
   }
 
   public async deleteRecord(id: string): Promise<boolean> {
-    return this.repository.deleteRecord(id);
+    const result = await this.repository.deleteRecord(id);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pvg:records-updated'));
+    }
+    return result;
   }
 
   public async resetToSeeds(): Promise<void> {
-    return this.repository.resetToSeeds();
+    await this.repository.resetToSeeds();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pvg:records-updated'));
+    }
   }
 
   public async getQuickStats(): Promise<QuickStats> {

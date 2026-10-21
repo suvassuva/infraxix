@@ -1,24 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import {
   MapPin,
   ShieldCheck,
-  Video,
-  Camera,
   Maximize2,
   Clock,
-  ChevronLeft,
-  ChevronRight,
   ArrowRight,
   Layers,
   Building2,
-  Ruler,
-  Zap,
   Car,
   Bath,
-  Compass,
+  User,
+  Video,
+  Camera,
 } from 'lucide-react';
 import { CaptureRecord } from '@/types';
 
@@ -41,41 +37,6 @@ function formatDeposit(amount?: number): string {
 }
 
 export function PropertyCard({ property, className = '' }: PropertyCardProps) {
-  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
-
-  const mediaList = React.useMemo(() => {
-    const list: Array<{ type: 'photo' | 'video'; uri: string; duration?: string; previewColor?: string }> = [];
-    if (property.mediaReferences && property.mediaReferences.length > 0) {
-      property.mediaReferences.forEach((m) => {
-        if (m.uri) {
-          list.push({
-            type: m.type === 'video' ? 'video' : 'photo',
-            uri: m.uri,
-            duration: m.duration,
-            previewColor: m.previewColor,
-          });
-        }
-      });
-    }
-    if (property.attachments && property.attachments.length > 0) {
-      property.attachments.forEach((a) => {
-        const uri = a.uri;
-        if (uri && !list.some((item) => item.uri === uri)) {
-          list.push({
-            type: a.mediaType === 'video' ? 'video' : 'photo',
-            uri,
-            duration: a.duration,
-            previewColor: a.previewColor,
-          });
-        }
-      });
-    }
-    return list;
-  }, [property.mediaReferences, property.attachments]);
-
-  const currentMedia = mediaList[activeMediaIndex] || mediaList[0];
-  const hasVideo = mediaList.some((m) => m.type === 'video');
-
   const specs = property.specs;
   const rent = specs?.rent || property.pricing?.price;
   const deposit = specs?.deposit || property.pricing?.securityDeposit;
@@ -87,182 +48,144 @@ export function PropertyCard({ property, className = '' }: PropertyCardProps) {
     ? `±${property.location.accuracyMeters.toFixed(1)}m`
     : '±2.5m';
 
-  const handlePrevMedia = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setActiveMediaIndex((prev) => (prev > 0 ? prev - 1 : mediaList.length - 1));
-  };
+  // Count evidence items (photos / videos)
+  const mediaCount = Math.max(
+    property.mediaReferences?.length || 0,
+    property.attachments?.length || 0
+  );
+  const hasVideo =
+    property.mediaReferences?.some((m) => m.type === 'video') ||
+    property.attachments?.some((a) => a.mediaType === 'video' || a.type === 'video');
 
-  const handleNextMedia = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setActiveMediaIndex((prev) => (prev < mediaList.length - 1 ? prev + 1 : 0));
-  };
+  const officerName = property.capturedBy?.name || 'Field Officer';
 
   return (
     <div
-      className={`group relative flex flex-col rounded-xl bg-white border border-slate-200 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 overflow-hidden ${className}`}
+      className={`group relative flex flex-col justify-between rounded-2xl bg-white border border-slate-200/90 shadow-xs hover:shadow-md hover:border-slate-300 transition-all duration-200 p-4 sm:p-5 ${className}`}
     >
-      {/* Visual Media Header - Compact Height */}
-      <div className="relative h-28 sm:h-32 w-full overflow-hidden bg-slate-100 border-b border-slate-200/60">
-        {currentMedia?.uri ? (
-          currentMedia.type === 'video' ? (
-            <div className="relative w-full h-full bg-slate-950 flex items-center justify-center">
-              <video
-                src={currentMedia.uri}
-                className="w-full h-full object-cover"
-                muted
-                playsInline
-                preload="metadata"
-              />
-              <div className="absolute inset-0 bg-black/25 flex items-center justify-center">
-                <div className="w-8 h-8 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center border border-white/40 shadow-sm">
-                  <Video className="w-4 h-4 text-white" />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <img
-              src={currentMedia.uri}
-              alt={property.title || 'Workspace Evidence'}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              loading="lazy"
-            />
-          )
-        ) : (
-          <div className="absolute inset-0 bg-slate-100 flex items-center justify-center p-2 text-center">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center border border-slate-200 shadow-2xs">
-              <Building2 className="w-5 h-5 text-slate-400" />
-            </div>
-          </div>
-        )}
-
-        {/* Top Badges */}
-        <div className="absolute top-2 left-2 right-2 flex items-start justify-between gap-1 z-10 pointer-events-none">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-white/95 backdrop-blur-md text-slate-800 shadow-xs border border-slate-200 shrink-0">
-            <Building2 className="w-3 h-3 text-blue-600" />
+      <div className="space-y-3.5">
+        {/* Top Header Row: Category Badge & Verification Status */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60">
+            <Building2 className="w-3.5 h-3.5 text-blue-600" />
             {property.category || property.propertyCategory || 'Workspace'}
           </span>
 
           {isVerified && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-600 text-white shadow-xs shrink-0">
-              <ShieldCheck className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
               GPS ({accuracyText})
             </span>
           )}
           {isPending && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500 text-white shadow-xs shrink-0">
-              <Clock className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
               Pending
             </span>
           )}
           {isFlagged && (
-            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-600 text-white shadow-xs shrink-0">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
               Flagged
             </span>
           )}
         </div>
 
-        {/* Carousel controls */}
-        {mediaList.length > 1 && (
-          <>
-            <button
-              onClick={handlePrevMedia}
-              aria-label="Previous photo"
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-opacity z-10"
-            >
-              <ChevronLeft className="w-3 h-3" />
-            </button>
-            <button
-              onClick={handleNextMedia}
-              aria-label="Next photo"
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-opacity z-10"
-            >
-              <ChevronRight className="w-3 h-3" />
-            </button>
-            <div className="absolute bottom-1.5 right-2 bg-black/60 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.2 rounded-full z-10">
-              {activeMediaIndex + 1}/{mediaList.length}
-            </div>
-          </>
-        )}
-
-        {hasVideo && (
-          <div className="absolute bottom-1.5 left-2 bg-black/70 backdrop-blur-xs text-emerald-300 text-[9px] font-semibold px-1.5 py-0.2 rounded-full flex items-center gap-1 z-10">
-            <Video className="w-2.5 h-2.5 text-emerald-400" />
-            Video
+        {/* Pricing Banner */}
+        <div className="flex items-baseline justify-between gap-2 pt-0.5">
+          <div className="text-xl font-bold tracking-tight text-slate-900">
+            {formatRent(rent)}
           </div>
-        )}
-      </div>
+          {deposit ? (
+            <span className="text-xs font-medium text-slate-500">
+              {formatDeposit(deposit)}
+            </span>
+          ) : null}
+        </div>
 
-      {/* Workspace Details Body - Compact */}
-      <div className="p-3 flex flex-col justify-between space-y-2">
+        {/* Title & Doorstep Address */}
         <div>
-          {/* Rent & Deposit Banner */}
-          <div className="flex items-baseline justify-between gap-2">
-            <div className="text-base font-bold tracking-tight text-slate-900">
-              {formatRent(rent)}
-            </div>
-            {deposit ? (
-              <span className="text-[11px] font-medium text-slate-500">
-                {formatDeposit(deposit)}
-              </span>
-            ) : null}
-          </div>
-
-          {/* Title & Ref */}
-          <Link href={`/records/${property.id}`} className="block group/link mt-0.5">
-            <h3 className="text-xs sm:text-sm font-semibold text-slate-900 group-hover/link:text-blue-600 transition-colors line-clamp-1">
+          <Link href={`/records/${property.id}`} className="block group/link">
+            <h3 className="text-base font-bold text-slate-900 group-hover/link:text-blue-600 transition-colors line-clamp-1">
               {property.title}
             </h3>
           </Link>
-
-          {/* Location & Address */}
-          <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
-            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="truncate">
               {property.location?.address || property.facility || 'On-Site Location'}
             </span>
           </div>
+        </div>
 
-          {/* Core Specs Chips - Streamlined single-line badges */}
-          <div className="mt-2 pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-[11px]">
-            {/* Area */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
-              <Maximize2 className="w-3 h-3 text-blue-600 shrink-0" />
-              <span className="font-medium truncate">{specs?.areaSqFt ? `${specs.areaSqFt} sqft` : '—'}</span>
-            </div>
+        {/* Core Specs Chips (Grid of 4) */}
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
+          {/* Area */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-slate-700">
+            <Maximize2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+            <span className="font-medium truncate">
+              {specs?.areaSqFt ? `${specs.areaSqFt} sqft` : '—'}
+            </span>
+          </div>
 
-            {/* Floor */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
-              <Layers className="w-3 h-3 text-indigo-600 shrink-0" />
-              <span className="font-medium truncate">
-                {specs?.floorNumber !== undefined
-                  ? `Fl ${specs.floorNumber}${specs.totalFloors ? `/${specs.totalFloors}` : ''}`
-                  : '—'}
-              </span>
-            </div>
+          {/* Floor */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-slate-700">
+            <Layers className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+            <span className="font-medium truncate">
+              {specs?.floorNumber !== undefined
+                ? `Fl ${specs.floorNumber}${specs.totalFloors ? `/${specs.totalFloors}` : ''}`
+                : '—'}
+            </span>
+          </div>
 
-            {/* Washroom */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
-              <Bath className="w-3 h-3 text-cyan-600 shrink-0" />
-              <span className="font-medium truncate">{specs?.washrooms !== undefined ? `${specs.washrooms} WC` : '—'}</span>
-            </div>
+          {/* Washroom */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-slate-700">
+            <Bath className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+            <span className="font-medium truncate">
+              {specs?.washrooms !== undefined ? `${specs.washrooms} WC` : '—'}
+            </span>
+          </div>
 
-            {/* Parking */}
-            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100/80 rounded px-1.5 py-0.5 text-slate-700">
-              <Car className="w-3 h-3 text-purple-600 shrink-0" />
-              <span className="font-medium truncate">{specs?.parkingSpaces !== undefined ? `${specs.parkingSpaces} Car` : '—'}</span>
-            </div>
+          {/* Parking */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-slate-700">
+            <Car className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+            <span className="font-medium truncate">
+              {specs?.parkingSpaces !== undefined ? `${specs.parkingSpaces} Car` : '—'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Card Footer: Field Officer Details & Action Link */}
+      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+        {/* Field Officer Badge */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center justify-center shrink-0">
+            <User className="w-3.5 h-3.5" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase font-semibold text-slate-400 block tracking-wider leading-none">
+              Field Officer
+            </span>
+            <span className="font-semibold text-slate-800 truncate block text-xs mt-0.5">
+              {officerName}
+            </span>
           </div>
         </div>
 
-        {/* Card Footer */}
-        <div className="pt-2 border-t border-slate-100 flex items-center justify-end text-[11px]">
+        {/* Evidence tag & View & Edit Link */}
+        <div className="flex items-center gap-2 shrink-0">
+          {mediaCount > 0 && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+              {hasVideo ? <Video className="w-3 h-3 text-blue-600" /> : <Camera className="w-3 h-3 text-slate-500" />}
+              <span>{mediaCount}</span>
+            </span>
+          )}
           <Link
             href={`/records/${property.id}`}
-            className="inline-flex items-center gap-0.5 text-xs font-semibold text-blue-600 hover:text-blue-700 group-hover:translate-x-0.5 transition-all"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 group-hover:translate-x-0.5 transition-all bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg border border-blue-200/60"
           >
-            View & Edit <ArrowRight className="w-3 h-3" />
+            <span>View & Edit</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
       </div>

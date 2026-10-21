@@ -45,6 +45,7 @@ import { recordService } from '@/services/recordService';
 import { useAuth } from '@/hooks/useAuth';
 import { UserProfile, CaptureRecord } from '@/types';
 import { downloadRecordsCsv } from '@/utils/csvExport';
+import { OfficerLiveRadar } from '@/components/admin/OfficerLiveRadar';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -469,6 +470,11 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ==================================================================== */}
+      {/* FIELD OFFICERS LIVE RADAR & DAILY DUTY TRACKING */}
+      {/* ==================================================================== */}
+      <OfficerLiveRadar />
 
       {/* ==================================================================== */}
       {/* SECTION 1: INCOMING FIELD OFFICER SUBMISSIONS QUEUE */}

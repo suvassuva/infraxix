@@ -36,21 +36,23 @@ service cloud.firestore {
     }
 
     function isValidCoordinates(data) {
+      let loc = data.location;
       return !('location' in data) || data.location == null || (
-        data.location.latitude is number &&
-        data.location.latitude >= -90.0 &&
-        data.location.latitude <= 90.0 &&
-        data.location.longitude is number &&
-        data.location.longitude >= -180.0 &&
-        data.location.longitude <= 180.0 &&
-        (!('accuracy' in data.location) || data.location.accuracy == null || (data.location.accuracy is number && data.location.accuracy >= 0))
+        loc.latitude is number &&
+        loc.latitude >= -90.0 &&
+        loc.latitude <= 90.0 &&
+        loc.longitude is number &&
+        loc.longitude >= -180.0 &&
+        loc.longitude <= 180.0 &&
+        (!('accuracy' in loc) || loc.accuracy == null || (loc.accuracy is number && loc.accuracy >= 0))
       );
     }
 
     // User Profiles Collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId && (request.resource.data.role == 'officer' || isAdmin());
+      allow update: if isAuthenticated() && (isAdmin() || (request.auth.uid == userId && request.resource.data.role == resource.data.role));
       allow delete: if isAuthenticated() && isAdmin();
     }
 
@@ -87,6 +89,12 @@ service cloud.firestore {
     match /auditLogs/{logId} {
       allow read, create: if isAuthenticated();
       allow update, delete: if false; // Append-only audit integrity
+    }
+
+    // Field Officer Daily Duty & Real-Time Live Location Broadcasting
+    match /officerLiveLocations/{officerUid} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (request.auth.uid == officerUid || isAdmin());
     }
   }
 }

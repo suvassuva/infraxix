@@ -131,7 +131,9 @@ export class FirestoreRecordRepository implements IRecordRepository {
       if (typeof safeUri === 'string') {
         if (safeUri.startsWith('data:')) {
           const itemBytes = safeUri.length;
+          const reportedSize = typeof m.fileSize === 'number' ? m.fileSize : itemBytes;
           if (
+            reportedSize > MAX_SINGLE_MEDIA_DATA_BYTES ||
             itemBytes > MAX_SINGLE_MEDIA_DATA_BYTES ||
             totalDataUriBytes + itemBytes > MAX_TOTAL_MEDIA_DATA_BYTES
           ) {
@@ -240,29 +242,55 @@ export class FirestoreRecordRepository implements IRecordRepository {
     try {
       const constraints: QueryConstraint[] = [];
 
-      if (options?.ownerUid) {
-        constraints.push(where('ownerUid', '==', options.ownerUid));
-      }
-      if (options?.category && options.category !== 'all' && options.category !== 'All Categories') {
-        constraints.push(where('category', '==', options.category));
-      }
-      if (options?.status && options.status !== 'all') {
-        constraints.push(where('status', '==', options.status));
-      }
-      if (options?.priority && options.priority !== 'all') {
-        constraints.push(where('priority', '==', options.priority));
-      }
-
-      // Sort by recency
+      // Sort by recency (safe without cloud composite index)
       constraints.push(orderBy('createdAt', 'desc'));
 
       const pageSize = options?.pageSize || 12;
-      constraints.push(limit(pageSize * 3));
+      constraints.push(limit(pageSize * 5));
 
       const q = query(collection(db, RECORDS_COLLECTION), ...constraints);
       const snap = await getDocs(q);
 
       let items = snap.docs.map((d) => this.mapDocToRecord(d.data(), d.id));
+
+      // Filter by Owner UID or Officer identity (if requested)
+      if (options?.ownerUid) {
+        const targets = options.ownerUid
+          .toLowerCase()
+          .split('|')
+          .map((s) => s.trim())
+          .filter(Boolean);
+
+        items = items.filter((r) => {
+          const rUid = (r.ownerUid || '').toLowerCase().trim();
+          const rEmail = (r.capturedBy?.email || '').toLowerCase().trim();
+          const rName = (r.capturedBy?.name || '').toLowerCase().trim();
+
+          return targets.some(
+            (target) =>
+              (rUid && rUid === target) ||
+              (rEmail && rEmail === target) ||
+              (rName && (rName === target || rName.includes(target) || target.includes(rName)))
+          );
+        });
+      }
+
+      // Filter by Category
+      if (options?.category && options.category !== 'all' && options.category !== 'All Categories') {
+        items = items.filter(
+          (r) => r.category === options.category || r.propertyCategory === options.category
+        );
+      }
+
+      // Filter by Status
+      if (options?.status && options.status !== 'all') {
+        items = items.filter((r) => r.status === options.status);
+      }
+
+      // Filter by Priority
+      if (options?.priority && options.priority !== 'all') {
+        items = items.filter((r) => r.priority === options.priority);
+      }
 
       // In-memory search filtering
       if (options?.searchTerm) {

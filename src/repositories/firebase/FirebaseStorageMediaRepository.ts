@@ -153,7 +153,7 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
     // Suppress unhandled promise rejection in runtime when uploadTask is cancelled
     uploadPromise.catch(() => {});
 
-    // Safety timeout on cloud storage upload to prevent freezing if bucket is unprovisioned
+    // Snappy safety timeout on cloud storage upload to prevent freezing if bucket is unprovisioned or network is slow
     const timeoutPromise = new Promise<MediaUploadResult>((_, reject) => {
       const timer = setTimeout(() => {
         if (!isSettled) {
@@ -164,9 +164,9 @@ export class FirebaseStorageMediaRepository implements IMediaRepository {
           } catch {
             // ignore cancel error
           }
-          reject(new Error('Firebase Storage upload timed out after 12 seconds.'));
+          reject(new Error('Firebase Storage upload timed out after 2.5 seconds. Rapid local fallback initiated.'));
         }
-      }, 12000);
+      }, 2500);
 
       uploadPromise.finally(() => clearTimeout(timer));
     });

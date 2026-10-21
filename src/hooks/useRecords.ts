@@ -31,6 +31,7 @@ export function useRecords(options: RecordFilterOptions = {}) {
     propertyCategory,
     minPrice,
     maxPrice,
+    ownerUid,
   } = options;
 
   const [data, setData] = useState<PaginatedResult<CaptureRecord>>({
@@ -61,6 +62,7 @@ export function useRecords(options: RecordFilterOptions = {}) {
         propertyCategory,
         minPrice,
         maxPrice,
+        ownerUid,
       });
       setData(result);
     } catch (err: unknown) {
@@ -73,7 +75,7 @@ export function useRecords(options: RecordFilterOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [searchTerm, category, status, priority, sortBy, page, pageSize, listingType, propertyCategory, minPrice, maxPrice]);
+  }, [searchTerm, category, status, priority, sortBy, page, pageSize, listingType, propertyCategory, minPrice, maxPrice, ownerUid]);
 
   useEffect(() => {
     let ignore = false;
@@ -90,6 +92,7 @@ export function useRecords(options: RecordFilterOptions = {}) {
         propertyCategory,
         minPrice,
         maxPrice,
+        ownerUid,
       })
       .then((result) => {
         if (!ignore) {
@@ -112,7 +115,7 @@ export function useRecords(options: RecordFilterOptions = {}) {
     return () => {
       ignore = true;
     };
-  }, [searchTerm, category, status, priority, sortBy, page, pageSize]);
+  }, [searchTerm, category, status, priority, sortBy, page, pageSize, listingType, propertyCategory, minPrice, maxPrice, ownerUid]);
 
   // Synchronize immediately whenever repository records change anywhere
   useEffect(() => {
