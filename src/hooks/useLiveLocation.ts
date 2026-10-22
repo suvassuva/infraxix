@@ -106,10 +106,20 @@ export function useOfficerLiveLocation() {
 }
 
 export function useAdminLiveRadar() {
+  const { user, isLoading: authLoading } = useAuth();
   const [officers, setOfficers] = useState<OfficerDutyLocation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
+    // Wait until auth state is fully resolved
+    if (authLoading) return;
+
+    // Do not attempt to query Firestore if user is not authenticated
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     const unsubscribe = liveLocationService.subscribeToAllLiveOfficers((list) => {
       setOfficers(list);
@@ -119,7 +129,7 @@ export function useAdminLiveRadar() {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [user, authLoading]);
 
   const liveOfficers = officers.filter((o) => o.isLive && o.status === 'on_duty');
 

@@ -59,41 +59,35 @@ export function OfficerLiveRadar() {
     <div className="w-full bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden space-y-4">
       {/* Header with Metrics */}
       <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+        <div className="flex items-start sm:items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0 mt-0.5 sm:mt-0">
             <Radio className="w-5 h-5 animate-pulse" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                Field Officers Live Radar
-              </h2>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
-                {activeCount} Live Now
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 leading-tight mt-0.5">
-              Live telemetry coordinates broadcasting from frontline inspectors on duty.
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+              Field Officers Live Radar
+            </h2>
+            <p className="text-xs text-slate-500 leading-normal mt-0.5 truncate sm:text-clip">
+              Real-time location of active field officers.
             </p>
           </div>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto">
+        <div className="grid grid-cols-3 sm:flex items-center gap-1.5 w-full sm:w-auto">
           <button
             onClick={() => setFilterType('all')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap text-center transition-colors ${
               filterType === 'all'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            All Personnel ({totalOfficers})
+            All ({totalOfficers})
           </button>
           <button
             onClick={() => setFilterType('live')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap text-center transition-colors ${
               filterType === 'live'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -103,7 +97,7 @@ export function OfficerLiveRadar() {
           </button>
           <button
             onClick={() => setFilterType('offline')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap text-center transition-colors ${
               filterType === 'offline'
                 ? 'bg-slate-700 text-white shadow-xs'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
